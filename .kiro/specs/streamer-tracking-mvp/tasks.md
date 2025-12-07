@@ -97,7 +97,7 @@ This implementation plan breaks down the feature design into discrete, manageabl
   - Test weighting algorithm with known data
   - Test edge case: insufficient historical data
 
-- [ ] 7. Implement TV Programme Service
+- [x] 7. Implement TV Programme Service
   - Create `internal/service/tvprogramme.go` with TVProgrammeService implementation
   - Implement GenerateProgramme to create weekly schedules
   - Implement GetPredictedLiveTime using heatmap data
@@ -105,15 +105,15 @@ This implementation plan breaks down the feature design into discrete, manageabl
   - Implement GetMostViewedStreamers and GetDefaultWeekView for home page
   - _Requirements: 4.1, 4.2, 4.3, 4.4_
 
-- [ ] 7.1 Write property test for TV programme prediction consistency
+- [x] 7.1 Write property test for TV programme prediction consistency
   - **Property 7: TV Programme Prediction Consistency**
   - **Validates: Requirements 4.1, 4.2**
 
-- [ ] 7.2 Write property test for week-based programme uniqueness
+- [x] 7.2 Write property test for week-based programme uniqueness
   - **Property 8: Week-Based Programme Uniqueness**
   - **Validates: Requirements 4.4**
 
-- [ ] 7.3 Write unit tests for TV Programme Service
+- [x] 7.3 Write unit tests for TV Programme Service
   - Test GenerateProgramme for different weeks
   - Test GetPredictedLiveTime accuracy
   - Test edge case: streamer with no historical data
