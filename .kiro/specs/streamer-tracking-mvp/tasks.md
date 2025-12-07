@@ -13,7 +13,7 @@ This implementation plan breaks down the feature design into discrete, manageabl
   - Set up HTTP server with basic routing in `cmd/server/main.go`
   - _Requirements: 1.1, 6.1_
 
-- [ ] 2. Implement data models and storage layer with SQLite
+- [x] 2. Implement data models and storage layer with SQLite
   - Create data model structs in `internal/domain/models.go` (Streamer, LiveStatus, Heatmap, User, ActivityRecord, TVProgramme)
   - Set up SQLite database with connection pooling
   - Implement database schema and migrations using a migration tool
@@ -21,15 +21,15 @@ This implementation plan breaks down the feature design into discrete, manageabl
   - Implement SQLite-backed repositories for all data models
   - _Requirements: 1.1, 1.2, 1.3, 1.4_
 
-- [ ] 2.1 Write property test for streamer data persistence
+- [x] 2.1 Write property test for streamer data persistence
   - **Property 1: Streamer Data Persistence**
   - **Validates: Requirements 1.1, 1.3**
 
-- [ ] 2.2 Write property test for streamer update consistency
+- [x] 2.2 Write property test for streamer update consistency
   - **Property 2: Streamer Update Consistency**
   - **Validates: Requirements 1.2**
 
-- [ ] 2.3 Write property test for multi-platform handle isolation
+- [x] 2.3 Write property test for multi-platform handle isolation
   - **Property 3: Multi-Platform Handle Isolation**
   - **Validates: Requirements 1.4, 10.1**
 
