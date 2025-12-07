@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"sync"
 	"testing"
 	"time"
 
@@ -16,6 +17,7 @@ type mockStreamerRepository struct {
 	getErr    error
 	updateErr error
 	listErr   error
+	mu        sync.RWMutex
 }
 
 func newMockStreamerRepository() *mockStreamerRepository {
@@ -28,6 +30,8 @@ func (m *mockStreamerRepository) Create(ctx context.Context, streamer *domain.St
 	if m.createErr != nil {
 		return m.createErr
 	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	m.streamers[streamer.ID] = streamer
 	return nil
 }
@@ -36,6 +40,8 @@ func (m *mockStreamerRepository) GetByID(ctx context.Context, id string) (*domai
 	if m.getErr != nil {
 		return nil, m.getErr
 	}
+	m.mu.RLock()
+	defer m.mu.RUnlock()
 	streamer, exists := m.streamers[id]
 	if !exists {
 		return nil, nil
@@ -47,6 +53,8 @@ func (m *mockStreamerRepository) List(ctx context.Context, limit int) ([]*domain
 	if m.listErr != nil {
 		return nil, m.listErr
 	}
+	m.mu.RLock()
+	defer m.mu.RUnlock()
 	result := make([]*domain.Streamer, 0, len(m.streamers))
 	count := 0
 	for _, streamer := range m.streamers {
@@ -63,16 +71,22 @@ func (m *mockStreamerRepository) Update(ctx context.Context, streamer *domain.St
 	if m.updateErr != nil {
 		return m.updateErr
 	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	m.streamers[streamer.ID] = streamer
 	return nil
 }
 
 func (m *mockStreamerRepository) Delete(ctx context.Context, id string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	delete(m.streamers, id)
 	return nil
 }
 
 func (m *mockStreamerRepository) GetByPlatform(ctx context.Context, platform string) ([]*domain.Streamer, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
 	result := make([]*domain.Streamer, 0)
 	for _, streamer := range m.streamers {
 		for _, p := range streamer.Platforms {

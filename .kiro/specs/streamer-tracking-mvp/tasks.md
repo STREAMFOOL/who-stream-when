@@ -59,7 +59,7 @@ This implementation plan breaks down the feature design into discrete, manageabl
   - Test error handling for unavailable platforms
   - Test SearchStreamer across all platforms
 
-- [ ] 5. Implement Live Status Service
+- [x] 5. Implement Live Status Service
   - Create `internal/service/livestatus.go` with LiveStatusService implementation
   - Implement GetLiveStatus to query platform adapters
   - Implement RefreshLiveStatus with caching logic (1 hour TTL)
@@ -67,11 +67,11 @@ This implementation plan breaks down the feature design into discrete, manageabl
   - Add error handling for platform failures with fallback to cached data
   - _Requirements: 2.1, 2.2, 2.3, 10.2, 10.3_
 
-- [ ] 5.1 Write property test for live status completeness
+- [x] 5.1 Write property test for live status completeness
   - **Property 4: Live Status Completeness**
   - **Validates: Requirements 2.1, 2.2, 2.3**
 
-- [ ] 5.2 Write unit tests for Live Status Service
+- [x] 5.2 Write unit tests for Live Status Service
   - Test GetLiveStatus with live and offline streamers
   - Test caching behavior
   - Test error handling when platform is unavailable
