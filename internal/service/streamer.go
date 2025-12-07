@@ -144,7 +144,7 @@ func (s *streamerService) validateStreamer(streamer *domain.Streamer) error {
 		return fmt.Errorf("%w: at least one platform is required", ErrInvalidStreamerData)
 	}
 
-	if streamer.Handles == nil || len(streamer.Handles) == 0 {
+	if len(streamer.Handles) == 0 {
 		return fmt.Errorf("%w: at least one handle is required", ErrInvalidStreamerData)
 	}
 
