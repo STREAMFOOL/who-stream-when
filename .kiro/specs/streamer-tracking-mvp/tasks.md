@@ -76,7 +76,7 @@ This implementation plan breaks down the feature design into discrete, manageabl
   - Test caching behavior
   - Test error handling when platform is unavailable
 
-- [ ] 6. Implement Activity Heatmap Service
+- [x] 6. Implement Activity Heatmap Service
   - Create `internal/service/heatmap.go` with HeatmapService implementation
   - Implement GenerateHeatmap with weighted calculation (80% last 3 months, 20% older)
   - Implement RecordActivity to store activity records
@@ -84,15 +84,15 @@ This implementation plan breaks down the feature design into discrete, manageabl
   - Add logic to analyze historical data from past year
   - _Requirements: 3.1, 3.2, 3.3, 4.2_
 
-- [ ] 6.1 Write property test for heatmap probability validity
+- [x] 6.1 Write property test for heatmap probability validity
   - **Property 5: Heatmap Probability Validity**
   - **Validates: Requirements 3.1, 3.2**
 
-- [ ] 6.2 Write property test for weighted activity calculation
+- [x] 6.2 Write property test for weighted activity calculation
   - **Property 6: Weighted Activity Calculation**
   - **Validates: Requirements 3.3**
 
-- [ ] 6.3 Write unit tests for Heatmap Service
+- [x] 6.3 Write unit tests for Heatmap Service
   - Test GenerateHeatmap with various data distributions
   - Test weighting algorithm with known data
   - Test edge case: insufficient historical data
