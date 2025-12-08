@@ -96,62 +96,8 @@ func (l *liveStatusService) RefreshLiveStatus(ctx context.Context, streamerID st
 		return nil, ErrStreamerNotFound
 	}
 
-	// Query all platforms for this streamer
-	var liveStatus *domain.LiveStatus
-	var lastErr error
-
-	for _, platform := range streamer.Platforms {
-		adapter, ok := l.platformAdapters[platform]
-		if !ok {
-			l.logger.Warn("No adapter available for platform", map[string]interface{}{
-				"platform":    platform,
-				"streamer_id": streamerID,
-			})
-			lastErr = fmt.Errorf("%w: no adapter for platform %s", ErrPlatformUnavailable, platform)
-			continue
-		}
-
-		handle, ok := streamer.Handles[platform]
-		if !ok || handle == "" {
-			continue
-		}
-
-		platformStatus, err := adapter.GetLiveStatus(ctx, handle)
-		if err != nil {
-			l.logger.Error("Platform adapter failed to get live status", map[string]interface{}{
-				"platform":    platform,
-				"handle":      handle,
-				"streamer_id": streamerID,
-				"error":       err.Error(),
-			})
-			lastErr = fmt.Errorf("platform %s error: %w", platform, err)
-			continue
-		}
-
-		// If streamer is live on this platform, use this status
-		if platformStatus.IsLive {
-			liveStatus = &domain.LiveStatus{
-				StreamerID:  streamerID,
-				IsLive:      true,
-				Platform:    platform,
-				StreamURL:   platformStatus.StreamURL,
-				Title:       platformStatus.Title,
-				Thumbnail:   platformStatus.Thumbnail,
-				ViewerCount: platformStatus.ViewerCount,
-				UpdatedAt:   time.Now(),
-			}
-			break
-		}
-	}
-
-	// If no live status found on any platform, create offline status
-	if liveStatus == nil {
-		liveStatus = &domain.LiveStatus{
-			StreamerID: streamerID,
-			IsLive:     false,
-			UpdatedAt:  time.Now(),
-		}
-	}
+	// Query all platforms for this streamer in parallel with timeout
+	liveStatus, lastErr := l.queryAllPlatforms(ctx, streamer)
 
 	// Save to cache
 	existingStatus, err := l.liveStatusRepo.GetByStreamerID(ctx, streamerID)
@@ -186,6 +132,102 @@ func (l *liveStatusService) RefreshLiveStatus(ctx context.Context, streamerID st
 	}
 
 	return liveStatus, nil
+}
+
+// queryAllPlatforms queries all platforms for a streamer in parallel with timeout
+func (l *liveStatusService) queryAllPlatforms(ctx context.Context, streamer *domain.Streamer) (*domain.LiveStatus, error) {
+	// Create a context with timeout for platform queries
+	queryCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
+
+	type platformResult struct {
+		platform string
+		status   *domain.PlatformLiveStatus
+		err      error
+	}
+
+	results := make(chan platformResult, len(streamer.Platforms))
+	var wg sync.WaitGroup
+
+	// Query all platforms in parallel
+	for _, platform := range streamer.Platforms {
+		adapter, ok := l.platformAdapters[platform]
+		if !ok {
+			l.logger.Warn("No adapter available for platform", map[string]interface{}{
+				"platform":    platform,
+				"streamer_id": streamer.ID,
+			})
+			continue
+		}
+
+		handle, ok := streamer.Handles[platform]
+		if !ok || handle == "" {
+			continue
+		}
+
+		wg.Add(1)
+		go func(plat, hdl string, adpt domain.PlatformAdapter) {
+			defer wg.Done()
+
+			platformStatus, err := adpt.GetLiveStatus(queryCtx, hdl)
+			results <- platformResult{
+				platform: plat,
+				status:   platformStatus,
+				err:      err,
+			}
+		}(platform, handle, adapter)
+	}
+
+	// Close results channel when all queries complete
+	go func() {
+		wg.Wait()
+		close(results)
+	}()
+
+	// Collect results from all platforms
+	var liveStatus *domain.LiveStatus
+	var lastErr error
+	queriedPlatforms := 0
+
+	for result := range results {
+		queriedPlatforms++
+
+		if result.err != nil {
+			l.logger.Error("Platform adapter failed to get live status", map[string]interface{}{
+				"platform":    result.platform,
+				"streamer_id": streamer.ID,
+				"error":       result.err.Error(),
+			})
+			lastErr = fmt.Errorf("platform %s error: %w", result.platform, result.err)
+			continue
+		}
+
+		// If streamer is live on this platform, use this status
+		// Priority: first live platform found
+		if result.status.IsLive && liveStatus == nil {
+			liveStatus = &domain.LiveStatus{
+				StreamerID:  streamer.ID,
+				IsLive:      true,
+				Platform:    result.platform,
+				StreamURL:   result.status.StreamURL,
+				Title:       result.status.Title,
+				Thumbnail:   result.status.Thumbnail,
+				ViewerCount: result.status.ViewerCount,
+				UpdatedAt:   time.Now(),
+			}
+		}
+	}
+
+	// If no live status found on any platform, create offline status
+	if liveStatus == nil {
+		liveStatus = &domain.LiveStatus{
+			StreamerID: streamer.ID,
+			IsLive:     false,
+			UpdatedAt:  time.Now(),
+		}
+	}
+
+	return liveStatus, lastErr
 }
 
 // GetAllLiveStatus retrieves live status for all streamers

@@ -35,53 +35,48 @@ func NewTVProgrammeService(
 	}
 }
 
-// GenerateProgramme creates a weekly schedule for a user's followed streamers
+// GenerateProgramme creates a weekly schedule for a user's followed streamers.
+// It combines day-of-week and hour probabilities from heatmaps to predict when
+// streamers are likely to go live. Only time slots with combined probability > 0.05
+// are included to reduce noise in the calendar view.
 func (s *tvProgrammeService) GenerateProgramme(ctx context.Context, userID string, week time.Time) (*domain.TVProgramme, error) {
 	if userID == "" {
 		return nil, fmt.Errorf("user ID cannot be empty")
 	}
 
-	// Verify user exists
 	_, err := s.userRepo.GetByID(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user: %w", err)
 	}
 
-	// Get user's followed streamers
 	streamers, err := s.followRepo.GetFollowedStreamers(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get followed streamers: %w", err)
 	}
 
-	// Normalize week to start of week (Sunday)
 	weekStart := normalizeToWeekStart(week)
 
 	var entries []domain.ProgrammeEntry
 
-	// Generate predictions for each followed streamer
 	for _, streamer := range streamers {
-		// Get heatmap for the streamer
 		heatmap, err := s.heatmapService.GenerateHeatmap(ctx, streamer.ID)
 		if err != nil {
-			// Skip streamers with insufficient data
 			continue
 		}
 
-		// Generate entries for each day of the week
 		for dayOfWeek := 0; dayOfWeek < 7; dayOfWeek++ {
-			// Get the most likely hours for this day
 			dayProbability := heatmap.DaysOfWeek[dayOfWeek]
 
-			// Only include days with reasonable probability
+			// Filter out days with low probability (< 10%) to reduce calendar clutter
 			if dayProbability > 0.1 {
-				// Find the most likely hours for this day
 				for hour := 0; hour < 24; hour++ {
 					hourProbability := heatmap.Hours[hour]
 
-					// Combine day and hour probabilities
+					// Combined probability: P(live at day D, hour H) = P(day D) * P(hour H)
+					// This assumes independence between day and hour patterns
 					combinedProbability := dayProbability * hourProbability
 
-					// Only include time slots with reasonable probability
+					// Only show time slots with meaningful probability (> 5%)
 					if combinedProbability > 0.05 {
 						entries = append(entries, domain.ProgrammeEntry{
 							StreamerID:  streamer.ID,
@@ -258,17 +253,12 @@ func (s *tvProgrammeService) GetDefaultWeekView(ctx context.Context) (*domain.We
 	return weekView, nil
 }
 
-// normalizeToWeekStart returns the start of the week (Sunday at 00:00:00)
+// normalizeToWeekStart returns the start of the week (Sunday at 00:00:00).
+// This ensures consistent week boundaries regardless of input time.
+// Go's time.Weekday uses 0=Sunday, so we subtract the weekday value to reach Sunday.
 func normalizeToWeekStart(t time.Time) time.Time {
-	// Get the weekday (0 = Sunday, 1 = Monday, etc.)
 	weekday := int(t.Weekday())
-
-	// Calculate days to subtract to get to Sunday
 	daysToSubtract := weekday
-
-	// Go back to Sunday
 	sunday := t.AddDate(0, 0, -daysToSubtract)
-
-	// Set time to 00:00:00
 	return time.Date(sunday.Year(), sunday.Month(), sunday.Day(), 0, 0, 0, 0, sunday.Location())
 }

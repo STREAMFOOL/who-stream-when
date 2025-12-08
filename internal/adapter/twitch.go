@@ -30,13 +30,15 @@ func NewTwitchAdapter(clientID, clientSecret string) *TwitchAdapter {
 	}
 }
 
-// ensureAccessToken ensures we have a valid access token
+// ensureAccessToken ensures we have a valid access token for Twitch API calls.
+// Twitch requires OAuth 2.0 client credentials flow for app access tokens.
+// The token is cached in memory and reused for subsequent requests.
+// Note: Tokens expire after ~60 days but automatic refresh is not implemented.
 func (t *TwitchAdapter) ensureAccessToken(ctx context.Context) error {
 	if t.accessToken != "" {
 		return nil
 	}
 
-	// Get OAuth token
 	url := fmt.Sprintf("https://id.twitch.tv/oauth2/token?client_id=%s&client_secret=%s&grant_type=client_credentials",
 		t.clientID, t.clientSecret)
 
@@ -68,19 +70,20 @@ func (t *TwitchAdapter) ensureAccessToken(ctx context.Context) error {
 	return nil
 }
 
-// GetLiveStatus retrieves the live status for a Twitch channel
+// GetLiveStatus retrieves the live status for a Twitch channel.
+// Twitch API requires a two-step process: first convert username to user ID,
+// then query the streams endpoint. The handle parameter should be a Twitch username.
 func (t *TwitchAdapter) GetLiveStatus(ctx context.Context, handle string) (*domain.PlatformLiveStatus, error) {
 	if err := t.ensureAccessToken(ctx); err != nil {
 		return nil, err
 	}
 
-	// First, get user ID from username
+	// Twitch API uses numeric user IDs, not usernames
 	userID, err := t.getUserID(ctx, handle)
 	if err != nil {
 		return nil, err
 	}
 
-	// Get stream info
 	url := fmt.Sprintf("https://api.twitch.tv/helix/streams?user_id=%s", userID)
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
@@ -114,7 +117,7 @@ func (t *TwitchAdapter) GetLiveStatus(ctx context.Context, handle string) (*doma
 		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
 
-	// If no streams found, the channel is offline
+	// Empty data array means the channel is not currently streaming
 	if len(result.Data) == 0 {
 		return &domain.PlatformLiveStatus{
 			IsLive: false,
@@ -131,7 +134,8 @@ func (t *TwitchAdapter) GetLiveStatus(ctx context.Context, handle string) (*doma
 	}, nil
 }
 
-// getUserID retrieves the user ID for a given username
+// getUserID retrieves the numeric user ID for a given username.
+// Twitch's Helix API requires user IDs for most operations, not usernames.
 func (t *TwitchAdapter) getUserID(ctx context.Context, username string) (string, error) {
 	url := fmt.Sprintf("https://api.twitch.tv/helix/users?login=%s", username)
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)

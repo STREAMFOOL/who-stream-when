@@ -25,9 +25,11 @@ func NewKickAdapter() *KickAdapter {
 	}
 }
 
-// GetLiveStatus retrieves the live status for a Kick channel
+// GetLiveStatus retrieves the live status for a Kick channel.
+// Kick's API returns channel info with an optional livestream object.
+// If the livestream field is null, the channel is offline.
+// The handle parameter should be a Kick slug (username).
 func (k *KickAdapter) GetLiveStatus(ctx context.Context, handle string) (*domain.PlatformLiveStatus, error) {
-	// Kick API endpoint for channel info
 	url := fmt.Sprintf("https://kick.com/api/v2/channels/%s", handle)
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
@@ -67,7 +69,7 @@ func (k *KickAdapter) GetLiveStatus(ctx context.Context, handle string) (*domain
 		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
 
-	// If livestream is nil, the channel is offline
+	// Kick indicates offline status by returning null for the livestream field
 	if result.Livestream == nil {
 		return &domain.PlatformLiveStatus{
 			IsLive: false,

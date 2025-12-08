@@ -81,9 +81,11 @@ func (s *CalendarService) GetCalendarView(ctx context.Context, userID string, we
 	}, nil
 }
 
-// buildTimeSlotGrid creates a 2D grid of calendar entries organized by hour and day
+// buildTimeSlotGrid creates a 2D grid of calendar entries organized by hour and day.
+// The grid structure is [hour][day][entries], allowing multiple streamers to appear
+// in the same time slot. This supports the calendar view where users can see all
+// predicted streams for each hour of each day.
 func (s *CalendarService) buildTimeSlotGrid(programme *domain.TVProgramme, streamerMap map[string]*domain.Streamer) [][7][]*CalendarEntry {
-	// Initialize 24-hour x 7-day grid
 	timeSlots := make([][7][]*CalendarEntry, 24)
 	for hour := range timeSlots {
 		timeSlots[hour] = [7][]*CalendarEntry{}
@@ -92,8 +94,8 @@ func (s *CalendarService) buildTimeSlotGrid(programme *domain.TVProgramme, strea
 		}
 	}
 
-	// Populate grid with programme entries
 	for _, entry := range programme.Entries {
+		// Validate bounds to prevent index out of range panics
 		if entry.Hour < 0 || entry.Hour >= 24 || entry.DayOfWeek < 0 || entry.DayOfWeek >= 7 {
 			continue
 		}
@@ -131,7 +133,8 @@ func (s *CalendarService) NavigateWeek(currentWeek time.Time, direction string) 
 	}
 }
 
-// normalizeWeekStart returns the start of the week (Sunday at 00:00:00)
+// normalizeWeekStart returns the start of the week (Sunday at 00:00:00).
+// This ensures consistent week boundaries for calendar navigation.
 func normalizeWeekStart(t time.Time) time.Time {
 	weekday := int(t.Weekday())
 	daysToSubtract := weekday

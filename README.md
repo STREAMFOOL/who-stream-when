@@ -88,6 +88,10 @@ go test ./internal/service
 
 # Run tests with verbose output
 go test -v ./...
+
+# Run property-based tests (included in test suite)
+go test -v ./internal/middleware
+go test -v ./internal/service
 ```
 
 ### Code Formatting
@@ -95,6 +99,19 @@ go test -v ./...
 ```bash
 # Format all code
 go fmt ./...
+
+# Run linter (if golangci-lint is installed)
+golangci-lint run
+```
+
+### Database Management
+
+The application uses SQLite with automatic migrations on startup. The database file is created at `data/who-live-when.db`.
+
+To reset the database:
+```bash
+rm data/who-live-when.db
+./server  # Migrations run automatically
 ```
 
 ### Project Structure
@@ -151,17 +168,38 @@ The system analyzes historical streaming data from the past year to generate pro
 - **Weighted Calculation**: 80% weight on last 3 months, 20% on older data
 - **Time Slots**: Hourly probability distribution across the week
 - **Prediction**: Most likely streaming times based on historical patterns
+- **Formula**: `P(hour) = 0.8 * P_recent(hour) + 0.2 * P_older(hour)`
 
 ### Live Status Tracking
 
 - Queries platform APIs (YouTube, Twitch, Kick) for real-time status
 - Caches results for 1 hour to reduce API calls
 - Falls back to cached data if platform APIs are unavailable
+- Parallel queries for multi-platform streamers
 
 ### TV Programme Generation
 
 Creates a weekly schedule showing predicted streaming times:
 
 - Uses heatmap data to predict most likely live times
+- Combines day and hour probabilities: `P(day, hour) = P(day) * P(hour)`
+- Filters low-probability slots (< 5%) to reduce calendar clutter
 - Displays followed streamers in a calendar view
 - Supports week navigation for future planning
+
+## Documentation
+
+Additional documentation is available in the `docs/` directory:
+
+- **[API.md](docs/API.md)**: Complete API endpoint documentation
+- **[PLATFORM_ADAPTERS.md](docs/PLATFORM_ADAPTERS.md)**: Guide for implementing new platform adapters
+
+## Contributing
+
+When adding new features:
+
+1. Follow the existing architecture patterns (Clean Architecture, Repository Pattern)
+2. Add tests for new functionality (unit tests + property-based tests where applicable)
+3. Update documentation (README, API docs, inline comments)
+4. Ensure code passes `go fmt` and `golangci-lint`
+5. Keep functions focused and under 50 lines when possible

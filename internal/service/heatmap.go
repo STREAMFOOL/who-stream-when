@@ -34,8 +34,10 @@ func NewHeatmapService(
 	}
 }
 
-// GenerateHeatmap generates a heatmap for a streamer with weighted calculation
-// 80% weight for last 3 months, 20% weight for older data (up to 1 year)
+// GenerateHeatmap generates a heatmap for a streamer with weighted calculation.
+// The weighting algorithm gives 80% weight to the last 3 months and 20% to older data
+// (up to 1 year total). This ensures recent patterns have more influence while still
+// considering historical trends.
 func (s *heatmapService) GenerateHeatmap(ctx context.Context, streamerID string) (*domain.Heatmap, error) {
 	if streamerID == "" {
 		return nil, fmt.Errorf("streamer ID cannot be empty")
@@ -45,7 +47,6 @@ func (s *heatmapService) GenerateHeatmap(ctx context.Context, streamerID string)
 	oneYearAgo := now.AddDate(-1, 0, 0)
 	threeMonthsAgo := now.AddDate(0, -3, 0)
 
-	// Get all activity records from the past year
 	records, err := s.activityRepo.GetByStreamerID(ctx, streamerID, oneYearAgo)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get activity records: %w", err)
@@ -55,7 +56,7 @@ func (s *heatmapService) GenerateHeatmap(ctx context.Context, streamerID string)
 		return nil, ErrInsufficientData
 	}
 
-	// Separate records into recent (last 3 months) and older
+	// Partition records into two time windows for weighted calculation
 	var recentRecords, olderRecords []*domain.ActivityRecord
 	for _, record := range records {
 		if record.StartTime.After(threeMonthsAgo) {
@@ -65,7 +66,6 @@ func (s *heatmapService) GenerateHeatmap(ctx context.Context, streamerID string)
 		}
 	}
 
-	// Calculate hour and day probabilities with weighting
 	hours := s.calculateHourProbabilities(recentRecords, olderRecords)
 	days := s.calculateDayProbabilities(recentRecords, olderRecords)
 
@@ -77,15 +77,12 @@ func (s *heatmapService) GenerateHeatmap(ctx context.Context, streamerID string)
 		GeneratedAt: now,
 	}
 
-	// Try to update existing heatmap, create if it doesn't exist
 	existing, err := s.heatmapRepo.GetByStreamerID(ctx, streamerID)
 	if err != nil || existing == nil {
-		// Create new heatmap
 		if err := s.heatmapRepo.Create(ctx, heatmap); err != nil {
 			return nil, fmt.Errorf("failed to create heatmap: %w", err)
 		}
 	} else {
-		// Update existing heatmap
 		if err := s.heatmapRepo.Update(ctx, heatmap); err != nil {
 			return nil, fmt.Errorf("failed to update heatmap: %w", err)
 		}
@@ -94,13 +91,14 @@ func (s *heatmapService) GenerateHeatmap(ctx context.Context, streamerID string)
 	return heatmap, nil
 }
 
-// calculateHourProbabilities calculates probability for each hour with weighting
+// calculateHourProbabilities computes the probability distribution across 24 hours
+// using a weighted average of recent (80%) and older (20%) activity data.
+// Each hour's probability represents the likelihood of the streamer going live during that hour.
 func (s *heatmapService) calculateHourProbabilities(recent, older []*domain.ActivityRecord) [24]float64 {
 	var hours [24]float64
 	recentCounts := make([]int, 24)
 	olderCounts := make([]int, 24)
 
-	// Count occurrences in each hour
 	for _, record := range recent {
 		hour := record.StartTime.Hour()
 		recentCounts[hour]++
@@ -111,21 +109,22 @@ func (s *heatmapService) calculateHourProbabilities(recent, older []*domain.Acti
 		olderCounts[hour]++
 	}
 
-	// Calculate weighted probabilities
 	recentTotal := len(recent)
 	olderTotal := len(older)
 
+	// Weighted probability formula: P(hour) = 0.8 * P_recent(hour) + 0.2 * P_older(hour)
+	// where P_recent(hour) = count_recent(hour) / total_recent
 	for i := 0; i < 24; i++ {
 		var probability float64
 
 		if recentTotal > 0 {
 			recentProb := float64(recentCounts[i]) / float64(recentTotal)
-			probability += recentProb * 0.8 // 80% weight
+			probability += recentProb * 0.8
 		}
 
 		if olderTotal > 0 {
 			olderProb := float64(olderCounts[i]) / float64(olderTotal)
-			probability += olderProb * 0.2 // 20% weight
+			probability += olderProb * 0.2
 		}
 
 		hours[i] = probability
@@ -134,13 +133,14 @@ func (s *heatmapService) calculateHourProbabilities(recent, older []*domain.Acti
 	return hours
 }
 
-// calculateDayProbabilities calculates probability for each day with weighting
+// calculateDayProbabilities computes the probability distribution across 7 days of the week
+// using the same weighted average approach as hour probabilities (80% recent, 20% older).
+// Days are indexed 0-6 where 0=Sunday, 1=Monday, etc. (Go's time.Weekday convention).
 func (s *heatmapService) calculateDayProbabilities(recent, older []*domain.ActivityRecord) [7]float64 {
 	var days [7]float64
 	recentCounts := make([]int, 7)
 	olderCounts := make([]int, 7)
 
-	// Count occurrences for each day of week
 	for _, record := range recent {
 		day := int(record.StartTime.Weekday())
 		recentCounts[day]++
@@ -151,7 +151,6 @@ func (s *heatmapService) calculateDayProbabilities(recent, older []*domain.Activ
 		olderCounts[day]++
 	}
 
-	// Calculate weighted probabilities
 	recentTotal := len(recent)
 	olderTotal := len(older)
 
@@ -160,12 +159,12 @@ func (s *heatmapService) calculateDayProbabilities(recent, older []*domain.Activ
 
 		if recentTotal > 0 {
 			recentProb := float64(recentCounts[i]) / float64(recentTotal)
-			probability += recentProb * 0.8 // 80% weight
+			probability += recentProb * 0.8
 		}
 
 		if olderTotal > 0 {
 			olderProb := float64(olderCounts[i]) / float64(olderTotal)
-			probability += olderProb * 0.2 // 20% weight
+			probability += olderProb * 0.2
 		}
 
 		days[i] = probability

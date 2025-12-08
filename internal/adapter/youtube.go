@@ -31,14 +31,15 @@ func NewYouTubeAdapter(apiKey string) *YouTubeAdapter {
 	}
 }
 
-// GetLiveStatus retrieves the live status for a YouTube channel
+// GetLiveStatus retrieves the live status for a YouTube channel.
+// It uses the YouTube Data API v3 search endpoint with eventType=live to find
+// currently streaming videos. The handle parameter should be a YouTube channel ID.
 func (y *YouTubeAdapter) GetLiveStatus(ctx context.Context, handle string) (*domain.PlatformLiveStatus, error) {
-	// YouTube API endpoint for search
 	baseURL := "https://www.googleapis.com/youtube/v3/search"
 	params := url.Values{}
 	params.Add("part", "snippet")
 	params.Add("channelId", handle)
-	params.Add("eventType", "live")
+	params.Add("eventType", "live") // Only return live streams
 	params.Add("type", "video")
 	params.Add("key", y.apiKey)
 
@@ -90,21 +91,20 @@ func (y *YouTubeAdapter) GetLiveStatus(ctx context.Context, handle string) (*dom
 		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
 
-	// If no live streams found, return offline status
+	// Empty results means the channel is not currently streaming
 	if len(result.Items) == 0 {
 		return &domain.PlatformLiveStatus{
 			IsLive: false,
 		}, nil
 	}
 
-	// Get the first live stream
 	item := result.Items[0]
 	thumbnail := ""
 	if thumb, ok := item.Snippet.Thumbnails["medium"]; ok {
 		thumbnail = thumb.URL
 	}
 
-	// Get viewer count from video details
+	// Viewer count requires a separate API call to the videos endpoint
 	viewerCount, _ := y.getViewerCount(ctx, item.ID.VideoID)
 
 	return &domain.PlatformLiveStatus{
@@ -116,7 +116,8 @@ func (y *YouTubeAdapter) GetLiveStatus(ctx context.Context, handle string) (*dom
 	}, nil
 }
 
-// getViewerCount retrieves the current viewer count for a live video
+// getViewerCount retrieves the current viewer count for a live video.
+// This uses the videos endpoint with liveStreamingDetails part to get concurrent viewers.
 func (y *YouTubeAdapter) getViewerCount(ctx context.Context, videoID string) (int, error) {
 	baseURL := "https://www.googleapis.com/youtube/v3/videos"
 	params := url.Values{}
