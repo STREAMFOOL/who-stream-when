@@ -90,12 +90,6 @@ var migrations = []Migration{
 				generated_at DATETIME NOT NULL,
 				FOREIGN KEY (streamer_id) REFERENCES streamers(id) ON DELETE CASCADE
 			);
-
-			CREATE TABLE IF NOT EXISTS schema_migrations (
-				version INTEGER PRIMARY KEY,
-				name TEXT NOT NULL,
-				applied_at DATETIME NOT NULL
-			);
 		`,
 	},
 }
@@ -146,15 +140,23 @@ func Migrate(db *sql.DB) error {
 
 // getCurrentVersion returns the current schema version
 func getCurrentVersion(db *sql.DB) (int, error) {
+	// First, ensure the schema_migrations table exists
+	_, err := db.Exec(`
+		CREATE TABLE IF NOT EXISTS schema_migrations (
+			version INTEGER PRIMARY KEY,
+			name TEXT NOT NULL,
+			applied_at DATETIME NOT NULL
+		)
+	`)
+	if err != nil {
+		return 0, fmt.Errorf("failed to create schema_migrations table: %w", err)
+	}
+
 	var version int
-	err := db.QueryRow("SELECT COALESCE(MAX(version), 0) FROM schema_migrations").Scan(&version)
+	err = db.QueryRow("SELECT COALESCE(MAX(version), 0) FROM schema_migrations").Scan(&version)
 	if err != nil {
 		// If table doesn't exist, version is 0
 		if err == sql.ErrNoRows {
-			return 0, nil
-		}
-		// Check if the error is because the table doesn't exist
-		if _, err := db.Exec("SELECT 1 FROM schema_migrations LIMIT 1"); err != nil {
 			return 0, nil
 		}
 		return 0, fmt.Errorf("failed to query version: %w", err)

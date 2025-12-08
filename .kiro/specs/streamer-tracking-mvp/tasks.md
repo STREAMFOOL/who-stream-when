@@ -176,7 +176,7 @@ This implementation plan breaks down the feature design into discrete, manageabl
   - Test deduplication across platforms
   - Test edge case: no results found
 
-- [ ] 10. Implement HTTP Handlers - Public Routes
+- [x] 10. Implement HTTP Handlers - Public Routes
   - Create `internal/handler/public.go` with public endpoints
   - Implement GET `/` for home page (default week view with most viewed streamers)
   - Implement GET `/streamer/:id` for streamer detail page
@@ -185,7 +185,7 @@ This implementation plan breaks down the feature design into discrete, manageabl
   - Implement GET `/logout` for session cleanup
   - _Requirements: 2.1, 5.1, 6.1, 6.2, 6.3_
 
-- [ ] 10.1 Write integration tests for public routes
+- [x] 10.1 Write integration tests for public routes
   - Test home page displays only followed streamers
   - Test streamer detail page shows live status and heatmap
   - Test OAuth flow end-to-end
