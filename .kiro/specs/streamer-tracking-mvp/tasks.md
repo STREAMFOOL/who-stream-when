@@ -156,22 +156,22 @@ This implementation plan breaks down the feature design into discrete, manageabl
   - Test FollowStreamer and UnfollowStreamer
   - Test GetUserFollows returns all followed streamers
 
-- [ ] 9. Implement Streamer Search Service
+- [x] 9. Implement Streamer Search Service
   - Create `internal/service/search.go` with search logic
   - Implement SearchStreamers to query all platform adapters
   - Aggregate results from YouTube, Kick, and Twitch
   - Add deduplication logic for streamers appearing on multiple platforms
   - _Requirements: 7.1, 7.2, 7.4_
 
-- [ ] 9.1 Write property test for multi-platform search coverage
+- [x] 9.1 Write property test for multi-platform search coverage
   - **Property 14: Multi-Platform Search Coverage**
   - **Validates: Requirements 7.1, 7.4**
 
-- [ ] 9.2 Write property test for search result completeness
+- [x] 9.2 Write property test for search result completeness
   - **Property 15: Search Result Completeness**
   - **Validates: Requirements 7.2**
 
-- [ ] 9.3 Write unit tests for Search Service
+- [x] 9.3 Write unit tests for Search Service
   - Test SearchStreamers with various queries
   - Test deduplication across platforms
   - Test edge case: no results found
