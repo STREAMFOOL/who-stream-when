@@ -35,18 +35,18 @@
   - Test corrupted session data handling
   - _Requirements: 2.2, 3.2, 7.1, 7.2_
 
-- [-] 3. Create custom programme data model and repository
+- [x] 3. Create custom programme data model and repository
   - Define CustomProgramme struct in domain models
   - Create custom_programme table migration
   - Implement CustomProgrammeRepository interface
   - Implement SQLite repository for custom programmes
   - _Requirements: 3.1, 3.2_
 
-- [ ] 3.1 Write property test for custom programme persistence
+- [x] 3.1 Write property test for custom programme persistence
   - **Property 6: Custom Programme Database Persistence**
   - **Validates: Requirements 3.1**
 
-- [ ] 3.2 Write unit tests for custom programme repository
+- [x] 3.2 Write unit tests for custom programme repository
   - Test CRUD operations
   - Test user isolation (users can't access other users' programmes)
   - Test concurrent updates

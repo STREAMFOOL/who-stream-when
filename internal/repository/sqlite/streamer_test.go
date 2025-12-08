@@ -14,7 +14,7 @@ import (
 )
 
 // setupTestDB creates a temporary test database
-func setupTestDB(t *testing.T) *DB {
+func setupTestDB(t *testing.T) (*DB, func()) {
 	t.Helper()
 
 	// Create temporary database file
@@ -38,13 +38,12 @@ func setupTestDB(t *testing.T) *DB {
 		t.Fatalf("failed to run migrations: %v", err)
 	}
 
-	// Clean up on test completion
-	t.Cleanup(func() {
+	cleanup := func() {
 		db.Close()
 		os.Remove(tmpFile.Name())
-	})
+	}
 
-	return db
+	return db, cleanup
 }
 
 // genStreamer generates random streamers for property testing
@@ -92,7 +91,8 @@ func genPlatformHandles() gopter.Gen {
 // For any streamer with valid name, handles, and platforms, adding it to the system
 // and retrieving it should return identical data.
 func TestProperty_StreamerDataPersistence(t *testing.T) {
-	db := setupTestDB(t)
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
 	repo := NewStreamerRepository(db)
 	ctx := context.Background()
 
@@ -173,7 +173,8 @@ func TestProperty_StreamerDataPersistence(t *testing.T) {
 // For any existing streamer, updating its platform information and retrieving it
 // should reflect the updated platforms.
 func TestProperty_StreamerUpdateConsistency(t *testing.T) {
-	db := setupTestDB(t)
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
 	repo := NewStreamerRepository(db)
 	ctx := context.Background()
 
@@ -245,7 +246,8 @@ func TestProperty_StreamerUpdateConsistency(t *testing.T) {
 // For any streamer with handles on multiple platforms, each platform's handle
 // should be stored and retrieved independently without cross-contamination.
 func TestProperty_MultiPlatformHandleIsolation(t *testing.T) {
-	db := setupTestDB(t)
+	db, cleanup := setupTestDB(t)
+	defer cleanup()
 	repo := NewStreamerRepository(db)
 	ctx := context.Background()
 

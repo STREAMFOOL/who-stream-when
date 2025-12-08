@@ -118,3 +118,12 @@ type PredictedTime struct {
 	Hour        int
 	Probability float64
 }
+
+// CustomProgramme represents a user's personalized weekly schedule
+type CustomProgramme struct {
+	ID          string
+	UserID      string
+	StreamerIDs []string
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+}

@@ -92,6 +92,32 @@ var migrations = []Migration{
 			);
 		`,
 	},
+	{
+		Version: 2,
+		Name:    "add_custom_programmes",
+		Up: `
+			CREATE TABLE IF NOT EXISTS custom_programmes (
+				id TEXT PRIMARY KEY,
+				user_id TEXT UNIQUE NOT NULL,
+				created_at DATETIME NOT NULL,
+				updated_at DATETIME NOT NULL,
+				FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+			);
+
+			CREATE INDEX IF NOT EXISTS idx_custom_programmes_user_id ON custom_programmes(user_id);
+
+			CREATE TABLE IF NOT EXISTS custom_programme_streamers (
+				programme_id TEXT NOT NULL,
+				streamer_id TEXT NOT NULL,
+				position INTEGER NOT NULL,
+				PRIMARY KEY (programme_id, streamer_id),
+				FOREIGN KEY (programme_id) REFERENCES custom_programmes(id) ON DELETE CASCADE,
+				FOREIGN KEY (streamer_id) REFERENCES streamers(id) ON DELETE CASCADE
+			);
+
+			CREATE INDEX IF NOT EXISTS idx_custom_programme_streamers_programme_id ON custom_programme_streamers(programme_id);
+		`,
+	},
 }
 
 // Migrate runs all pending migrations

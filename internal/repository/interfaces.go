@@ -59,3 +59,11 @@ type HeatmapRepository interface {
 	Update(ctx context.Context, heatmap *domain.Heatmap) error
 	Delete(ctx context.Context, streamerID string) error
 }
+
+// CustomProgrammeRepository handles custom programme data persistence
+type CustomProgrammeRepository interface {
+	Create(ctx context.Context, programme *domain.CustomProgramme) error
+	GetByUserID(ctx context.Context, userID string) (*domain.CustomProgramme, error)
+	Update(ctx context.Context, programme *domain.CustomProgramme) error
+	Delete(ctx context.Context, userID string) error
+}
