@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -65,6 +64,13 @@ func main() {
 	sessionManager := auth.NewSessionManager("session", false, 86400*7) // 7 days
 	stateStore := auth.NewStateStore()
 
+	// Initialize search service
+	searchService := service.NewSearchService(
+		platformAdapters["youtube"],
+		platformAdapters["kick"],
+		platformAdapters["twitch"],
+	)
+
 	// Initialize handlers
 	publicHandler := handler.NewPublicHandler(
 		tvProgrammeService,
@@ -77,6 +83,16 @@ func main() {
 		stateStore,
 	)
 
+	authenticatedHandler := handler.NewAuthenticatedHandler(
+		tvProgrammeService,
+		streamerService,
+		liveStatusService,
+		heatmapService,
+		userService,
+		searchService,
+		sessionManager,
+	)
+
 	// Create HTTP server with basic routing
 	mux := http.NewServeMux()
 
@@ -87,12 +103,15 @@ func main() {
 	mux.HandleFunc("/auth/callback", publicHandler.HandleAuthCallback)
 	mux.HandleFunc("/logout", publicHandler.HandleLogout)
 
-	// Authenticated routes (will be protected by middleware later)
-	mux.HandleFunc("/dashboard", handleDashboard)
-	mux.HandleFunc("/search", handleSearch)
-	mux.HandleFunc("/follow/{id}", handleFollow)
-	mux.HandleFunc("/unfollow/{id}", handleUnfollow)
-	mux.HandleFunc("/calendar", handleCalendar)
+	// Authenticated routes (protected by middleware)
+	mux.HandleFunc("/dashboard", authenticatedHandler.RequireAuth(authenticatedHandler.HandleDashboard))
+	mux.HandleFunc("/search", authenticatedHandler.RequireAuth(authenticatedHandler.HandleSearch))
+	mux.HandleFunc("/follow/{id}", authenticatedHandler.RequireAuth(authenticatedHandler.HandleFollow))
+	mux.HandleFunc("/unfollow/{id}", authenticatedHandler.RequireAuth(authenticatedHandler.HandleUnfollow))
+	mux.HandleFunc("/calendar", authenticatedHandler.RequireAuth(authenticatedHandler.HandleCalendar))
+
+	// API routes (also protected)
+	mux.HandleFunc("/api/search", authenticatedHandler.RequireAuth(authenticatedHandler.HandleSearchAPI))
 
 	// Static files (for CSS, JS, images)
 	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
@@ -128,40 +147,4 @@ func main() {
 	}
 
 	log.Println("Server exited")
-}
-
-// Placeholder handlers - will be implemented in later tasks
-
-func handleDashboard(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "User dashboard")
-}
-
-func handleSearch(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-	fmt.Fprintf(w, "Search handler")
-}
-
-func handleFollow(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-	id := r.PathValue("id")
-	fmt.Fprintf(w, "Follow streamer: %s", id)
-}
-
-func handleUnfollow(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-	id := r.PathValue("id")
-	fmt.Fprintf(w, "Unfollow streamer: %s", id)
-}
-
-func handleCalendar(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "Calendar view")
 }

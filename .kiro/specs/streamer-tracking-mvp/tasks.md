@@ -190,7 +190,7 @@ This implementation plan breaks down the feature design into discrete, manageabl
   - Test streamer detail page shows live status and heatmap
   - Test OAuth flow end-to-end
 
-- [ ] 11. Implement HTTP Handlers - Authenticated Routes
+- [x] 11. Implement HTTP Handlers - Authenticated Routes
   - Create `internal/handler/authenticated.go` with protected endpoints
   - Implement GET `/dashboard` for user dashboard
   - Implement POST `/search` for streamer search
@@ -200,7 +200,7 @@ This implementation plan breaks down the feature design into discrete, manageabl
   - Add authentication middleware to verify user session
   - _Requirements: 5.2, 5.4, 7.1, 8.1, 8.2, 9.1, 9.2, 9.4_
 
-- [ ] 11.1 Write integration tests for authenticated routes
+- [x] 11.1 Write integration tests for authenticated routes
   - Test search requires authentication
   - Test follow/unfollow operations
   - Test calendar displays correct week
