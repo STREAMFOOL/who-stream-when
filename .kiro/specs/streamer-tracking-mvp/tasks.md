@@ -119,7 +119,7 @@ This implementation plan breaks down the feature design into discrete, manageabl
   - Test edge case: streamer with no historical data
   - Test GetMostViewedStreamers returns correct ordering
 
-- [ ] 8. Implement User Service and Authentication
+- [x] 8. Implement User Service and Authentication
   - Create `internal/service/user.go` with UserService implementation
   - Implement GetUser, CreateUser methods
   - Implement FollowStreamer, UnfollowStreamer, GetUserFollows
@@ -127,31 +127,31 @@ This implementation plan breaks down the feature design into discrete, manageabl
   - Implement session management with secure cookies
   - _Requirements: 6.1, 6.2, 6.3, 8.1, 8.2, 8.3_
 
-- [ ] 8.1 Write property test for user session establishment
+- [x] 8.1 Write property test for user session establishment
   - **Property 12: User Session Establishment**
   - **Validates: Requirements 6.2**
 
-- [ ] 8.2 Write property test for session cleanup on logout
+- [x] 8.2 Write property test for session cleanup on logout
   - **Property 13: Session Cleanup on Logout**
   - **Validates: Requirements 6.3**
 
-- [ ] 8.3 Write property test for follow operation idempotence
+- [x] 8.3 Write property test for follow operation idempotence
   - **Property 16: Follow Operation Idempotence**
   - **Validates: Requirements 8.1**
 
-- [ ] 8.4 Write property test for unfollow removes relationship
+- [x] 8.4 Write property test for unfollow removes relationship
   - **Property 17: Unfollow Removes Relationship**
   - **Validates: Requirements 8.2**
 
-- [ ] 8.5 Write property test for followed streamer visibility
+- [x] 8.5 Write property test for followed streamer visibility
   - **Property 18: Followed Streamer Visibility**
   - **Validates: Requirements 8.1**
 
-- [ ] 8.6 Write property test for activity tracking on follow
+- [x] 8.6 Write property test for activity tracking on follow
   - **Property 19: Activity Tracking on Follow**
   - **Validates: Requirements 8.4**
 
-- [ ] 8.7 Write unit tests for User Service
+- [x] 8.7 Write unit tests for User Service
   - Test CreateUser with Google OAuth data
   - Test FollowStreamer and UnfollowStreamer
   - Test GetUserFollows returns all followed streamers
