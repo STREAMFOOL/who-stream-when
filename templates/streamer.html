@@ -1,0 +1,121 @@
+{{template "base" .}}
+
+{{define "title"}}{{.Streamer.Name}} - Who Live When{{end}}
+
+{{define "content"}}
+<a href="/" class="back-link">← Back to Home</a>
+
+<div class="streamer-header">
+    <div class="streamer-info">
+        <h1>{{.Streamer.Name}}</h1>
+        <div class="platform-tags">
+            {{range .Streamer.Platforms}}
+            <span class="platform-tag">{{.}}</span>
+            {{end}}
+        </div>
+    </div>
+
+    <div class="streamer-actions">
+        {{if .IsAuthenticated}}
+        {{if .IsFollowing}}
+        <form action="/unfollow/{{.Streamer.ID}}" method="POST">
+            <button type="submit" class="btn btn-danger">Unfollow</button>
+        </form>
+        {{else}}
+        <form action="/follow/{{.Streamer.ID}}" method="POST">
+            <button type="submit" class="btn btn-primary">Follow</button>
+        </form>
+        {{end}}
+        {{else}}
+        <a href="/login" class="btn btn-primary">Login to Follow</a>
+        {{end}}
+    </div>
+</div>
+
+<!-- Live Status Section -->
+<div class="live-status-card {{if and .LiveStatus .LiveStatus.IsLive}}is-live{{else}}is-offline{{end}}" id="live-status"
+    hx-get="/api/livestatus/{{.Streamer.ID}}" hx-trigger="every 60s" hx-swap="innerHTML">
+    {{if .LiveStatus}}
+    {{if .LiveStatus.IsLive}}
+    <h2>🔴 Live Now on {{.LiveStatus.Platform}}</h2>
+    {{if .LiveStatus.Title}}
+    <p><strong>{{.LiveStatus.Title}}</strong></p>
+    {{end}}
+    {{if gt .LiveStatus.ViewerCount 0}}
+    <p class="viewer-count">{{.LiveStatus.ViewerCount}} watching</p>
+    {{end}}
+    {{if .LiveStatus.StreamURL}}
+    <a href="{{.LiveStatus.StreamURL}}" target="_blank" class="stream-link">Watch Stream</a>
+    {{end}}
+    {{else}}
+    <h2>Currently Offline</h2>
+    <p>This streamer is not currently live. Check the heatmap below to see when they usually stream.</p>
+    {{end}}
+    {{else}}
+    <h2>Status Unknown</h2>
+    <p>Unable to retrieve live status at this time.</p>
+    {{end}}
+</div>
+
+<!-- Platform Handles -->
+<div class="heatmap-container">
+    <h2>Platform Handles</h2>
+    <ul style="list-style: none; padding: 0;">
+        {{range $platform, $handle := .Streamer.Handles}}
+        <li style="padding: 0.5rem 0; border-bottom: 1px solid #e5e7eb;">
+            <strong>{{$platform}}:</strong> {{$handle}}
+        </li>
+        {{end}}
+    </ul>
+</div>
+
+
+<!-- Activity Heatmap -->
+{{if .Heatmap}}
+<div class="heatmap-container">
+    <h2>Activity Heatmap</h2>
+    <p style="color: #6b7280; margin-bottom: 1rem;">Based on {{.Heatmap.DataPoints}} data points</p>
+
+    <div class="heatmap-section">
+        <h3>Hours of Day (UTC)</h3>
+        <div class="heatmap-row">
+            {{range $hour, $prob := .Heatmap.Hours}}
+            {{$intensity := printf "%.0f" (mul $prob 100)}}
+            <div class="heatmap-cell" style="background-color: rgba(34, 197, 94, {{printf " %.2f" $prob}});"
+                title="{{$hour}}:00 - {{$intensity}}% activity">
+                {{$hour}}
+            </div>
+            {{end}}
+        </div>
+    </div>
+
+    <div class="heatmap-section">
+        <h3>Days of Week</h3>
+        <div class="heatmap-row">
+            {{$days := list "Sun" "Mon" "Tue" "Wed" "Thu" "Fri" "Sat"}}
+            {{range $day, $prob := .Heatmap.DaysOfWeek}}
+            {{$intensity := printf "%.0f" (mul $prob 100)}}
+            <div class="heatmap-cell heatmap-day" style="background-color: rgba(34, 197, 94, {{printf " %.2f" $prob}});"
+                title="{{index $days $day}} - {{$intensity}}% activity">
+                {{index $days $day}}
+            </div>
+            {{end}}
+        </div>
+    </div>
+
+    <div class="heatmap-legend">
+        <span>Less active</span>
+        <div class="legend-gradient"></div>
+        <span>More active</span>
+    </div>
+</div>
+{{else}}
+<div class="heatmap-container">
+    <h2>Activity Heatmap</h2>
+    <div class="insufficient-data">
+        <strong>Insufficient Data</strong>
+        <p>This streamer doesn't have enough historical data to generate an activity heatmap yet. Check back later!</p>
+    </div>
+</div>
+{{end}}
+{{end}}

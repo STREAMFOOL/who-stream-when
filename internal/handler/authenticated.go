@@ -14,6 +14,8 @@ import (
 	"who-live-when/internal/service"
 )
 
+// Note: html/template is still needed for the templates field type
+
 // AuthenticatedHandler handles authenticated routes
 type AuthenticatedHandler struct {
 	tvProgrammeService domain.TVProgrammeService
@@ -36,14 +38,6 @@ func NewAuthenticatedHandler(
 	searchService *service.SearchService,
 	sessionManager *auth.SessionManager,
 ) *AuthenticatedHandler {
-	// Load templates
-	tmpl, err := template.ParseGlob("templates/*.html")
-	if err != nil {
-		log.Printf("Warning: failed to load templates: %v", err)
-		// Create empty template to avoid nil pointer
-		tmpl = template.New("empty")
-	}
-
 	return &AuthenticatedHandler{
 		tvProgrammeService: tvProgrammeService,
 		streamerService:    streamerService,
@@ -52,7 +46,7 @@ func NewAuthenticatedHandler(
 		userService:        userService,
 		searchService:      searchService,
 		sessionManager:     sessionManager,
-		templates:          tmpl,
+		templates:          LoadTemplates(),
 	}
 }
 

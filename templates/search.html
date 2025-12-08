@@ -1,0 +1,64 @@
+{{template "base" .}}
+
+{{define "title"}}Search Results - Who Live When{{end}}
+
+{{define "content"}}
+<a href="/dashboard" class="back-link">← Back to Dashboard</a>
+
+<div class="page-header">
+    <h1>Search Results</h1>
+    <p>Results for "{{.Query}}"</p>
+</div>
+
+<!-- Search Form -->
+<form action="/search" method="POST" class="search-form" hx-post="/search" hx-target="#search-results"
+    hx-swap="innerHTML" hx-indicator="#search-spinner">
+    <input type="text" name="query" value="{{.Query}}" placeholder="Search for streamers..." required>
+    <button type="submit" class="btn btn-primary">
+        Search
+        <span id="search-spinner" class="htmx-indicator loading-spinner"></span>
+    </button>
+</form>
+
+<div id="search-results" class="search-results">
+    {{if .Results}}
+    {{range .Results}}
+    <div class="search-result">
+        <div class="result-info">
+            <h3>{{.Name}}</h3>
+            <div class="platform-tags">
+                {{range .Platforms}}
+                <span class="platform-tag">{{.}}</span>
+                {{end}}
+            </div>
+            <p class="result-handles">
+                {{range $platform, $handle := .Handles}}
+                <span>{{$platform}}: {{$handle}}</span>
+                {{end}}
+            </p>
+        </div>
+        <div class="result-actions">
+            {{$isFollowed := false}}
+            {{range $handle := .Handles}}
+            {{if index $.FollowedHandles $handle}}
+            {{$isFollowed = true}}
+            {{end}}
+            {{end}}
+            {{if $isFollowed}}
+            <span class="btn btn-secondary" style="cursor: default;">Already Following</span>
+            {{else}}
+            <p style="color: #6b7280; font-size: 0.875rem;">
+                <em>To follow, this streamer needs to be added to the system first.</em>
+            </p>
+            {{end}}
+        </div>
+    </div>
+    {{end}}
+    {{else}}
+    <div class="empty-state">
+        <h3>No results found</h3>
+        <p>No streamers found matching "{{.Query}}". Try a different search term.</p>
+    </div>
+    {{end}}
+</div>
+{{end}}

@@ -205,7 +205,7 @@ This implementation plan breaks down the feature design into discrete, manageabl
   - Test follow/unfollow operations
   - Test calendar displays correct week
 
-- [ ] 12. Implement HTML Templates and Frontend
+- [x] 12. Implement HTML Templates and Frontend
   - Create `templates/` directory structure
   - Implement base template with navigation and styling
   - Create `templates/home.html` for default week view with most viewed streamers
@@ -216,7 +216,7 @@ This implementation plan breaks down the feature design into discrete, manageabl
   - Add HTMX attributes for reactive updates (live status, search results)
   - _Requirements: 2.1, 3.1, 4.1, 5.1, 5.3, 9.1, 9.2_
 
-- [ ] 12.1 Write unit tests for template rendering
+- [x] 12.1 Write unit tests for template rendering
   - Test templates render with correct data
   - Test conditional rendering (authenticated vs unregistered)
 

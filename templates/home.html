@@ -1,0 +1,58 @@
+{{template "base" .}}
+
+{{define "title"}}Who Live When - Home{{end}}
+
+{{define "content"}}
+<div class="page-header">
+    <h1>Most Viewed Streamers</h1>
+    <p>Discover who's live right now across YouTube, Twitch, and Kick</p>
+</div>
+
+{{if .WeekView.Streamers}}
+<div class="streamer-grid" id="streamer-list">
+    {{range .WeekView.Streamers}}
+    {{$status := index $.LiveStatuses .ID}}
+    <div class="streamer-card" hx-get="/api/livestatus/{{.ID}}" hx-trigger="every 60s" hx-swap="outerHTML"
+        hx-select=".status-section">
+        <h3><a href="/streamer/{{.ID}}">{{.Name}}</a></h3>
+
+        <div class="status-section">
+            {{if and $status $status.IsLive}}
+            <span class="status-badge status-live">Live on {{$status.Platform}}</span>
+            {{if $status.Title}}
+            <p class="stream-title">{{$status.Title}}</p>
+            {{end}}
+            {{if gt $status.ViewerCount 0}}
+            <p class="viewer-count">{{$status.ViewerCount}} viewers</p>
+            {{end}}
+            {{if $status.StreamURL}}
+            <a href="{{$status.StreamURL}}" target="_blank" class="stream-link">Watch Stream</a>
+            {{end}}
+            {{else}}
+            <span class="status-badge status-offline">Offline</span>
+            {{end}}
+        </div>
+
+        <div class="platform-tags">
+            {{range .Platforms}}
+            <span class="platform-tag">{{.}}</span>
+            {{end}}
+        </div>
+
+        {{$viewCount := index $.WeekView.ViewCount .ID}}
+        {{if gt $viewCount 0}}
+        <p class="viewer-count">{{$viewCount}} followers</p>
+        {{end}}
+    </div>
+    {{end}}
+</div>
+{{else}}
+<div class="empty-state">
+    <h3>No streamers yet</h3>
+    <p>Be the first to follow a streamer!</p>
+    {{if not .IsAuthenticated}}
+    <p><a href="/login" class="btn btn-primary">Login with Google</a> to search and follow streamers.</p>
+    {{end}}
+</div>
+{{end}}
+{{end}}

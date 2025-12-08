@@ -35,14 +35,6 @@ func NewPublicHandler(
 	sessionManager *auth.SessionManager,
 	stateStore *auth.StateStore,
 ) *PublicHandler {
-	// Load templates
-	tmpl, err := template.ParseGlob("templates/*.html")
-	if err != nil {
-		log.Printf("Warning: failed to load templates: %v", err)
-		// Create empty template to avoid nil pointer
-		tmpl = template.New("empty")
-	}
-
 	return &PublicHandler{
 		tvProgrammeService: tvProgrammeService,
 		streamerService:    streamerService,
@@ -52,7 +44,7 @@ func NewPublicHandler(
 		oauthConfig:        oauthConfig,
 		sessionManager:     sessionManager,
 		stateStore:         stateStore,
-		templates:          tmpl,
+		templates:          LoadTemplates(),
 	}
 }
 

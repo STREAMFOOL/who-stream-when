@@ -1,0 +1,68 @@
+{{template "base" .}}
+
+{{define "title"}}Dashboard - Who Live When{{end}}
+
+{{define "content"}}
+<div class="page-header">
+    <h1>Your Dashboard</h1>
+    <p>Welcome back, {{.User.Email}}</p>
+</div>
+
+<!-- Search Form -->
+<form action="/search" method="POST" class="search-form" hx-post="/search" hx-target="#search-results"
+    hx-swap="innerHTML" hx-indicator="#search-spinner">
+    <input type="text" name="query" placeholder="Search for streamers across YouTube, Twitch, and Kick..." required>
+    <button type="submit" class="btn btn-primary">
+        Search
+        <span id="search-spinner" class="htmx-indicator loading-spinner"></span>
+    </button>
+</form>
+
+<div id="search-results"></div>
+
+<h2 style="margin: 2rem 0 1rem;">Your Followed Streamers</h2>
+
+{{if .FollowedStreamers}}
+<div class="streamer-grid" id="followed-streamers">
+    {{range .FollowedStreamers}}
+    {{$status := index $.LiveStatuses .ID}}
+    <div class="streamer-card" hx-get="/api/livestatus/{{.ID}}" hx-trigger="every 60s" hx-swap="outerHTML"
+        hx-select=".status-section">
+        <h3><a href="/streamer/{{.ID}}">{{.Name}}</a></h3>
+
+        <div class="status-section">
+            {{if and $status $status.IsLive}}
+            <span class="status-badge status-live">Live on {{$status.Platform}}</span>
+            {{if $status.Title}}
+            <p class="stream-title">{{$status.Title}}</p>
+            {{end}}
+            {{if gt $status.ViewerCount 0}}
+            <p class="viewer-count">{{$status.ViewerCount}} viewers</p>
+            {{end}}
+            {{if $status.StreamURL}}
+            <a href="{{$status.StreamURL}}" target="_blank" class="stream-link">Watch Stream</a>
+            {{end}}
+            {{else}}
+            <span class="status-badge status-offline">Offline</span>
+            {{end}}
+        </div>
+
+        <div class="platform-tags">
+            {{range .Platforms}}
+            <span class="platform-tag">{{.}}</span>
+            {{end}}
+        </div>
+
+        <form action="/unfollow/{{.ID}}" method="POST" style="margin-top: 1rem;">
+            <button type="submit" class="btn btn-danger">Unfollow</button>
+        </form>
+    </div>
+    {{end}}
+</div>
+{{else}}
+<div class="empty-state">
+    <h3>No followed streamers yet</h3>
+    <p>Use the search above to find and follow your favorite streamers!</p>
+</div>
+{{end}}
+{{end}}

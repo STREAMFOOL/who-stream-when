@@ -136,7 +136,7 @@ func setupTestAuthenticatedHandler(t *testing.T) (*AuthenticatedHandler, *domain
 }
 
 // createAuthenticatedRequest creates a request with a valid session cookie
-func createAuthenticatedRequest(t *testing.T, handler *AuthenticatedHandler, user *domain.User, method, path string, body string) (*http.Request, *httptest.ResponseRecorder) {
+func createAuthenticatedRequest(_ *testing.T, handler *AuthenticatedHandler, user *domain.User, method, path string, body string) (*http.Request, *httptest.ResponseRecorder) {
 	var req *http.Request
 	if body != "" {
 		req = httptest.NewRequest(method, path, strings.NewReader(body))
