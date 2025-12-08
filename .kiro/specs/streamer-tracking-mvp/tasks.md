@@ -256,14 +256,14 @@ This implementation plan breaks down the feature design into discrete, manageabl
   - Test activity records are created when streamer goes live
   - Test activity data is used for heatmap generation
 
-- [ ] 15. Implement Caching Layer
+- [x] 15. Implement Caching Layer
   - Create `internal/cache/cache.go` for caching logic
   - Implement TTL-based cache for live status (1 hour)
   - Implement cache invalidation on manual refresh
   - Add fallback to cached data when platform APIs are unavailable
   - _Requirements: 2.4, 10.4_
 
-- [ ] 15.1 Write unit tests for Caching
+- [x] 15.1 Write unit tests for Caching
   - Test cache TTL expiration
   - Test fallback to cached data on API failure
 
