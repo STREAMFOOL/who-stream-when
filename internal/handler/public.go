@@ -4,11 +4,11 @@ import (
 	"context"
 	"fmt"
 	"html/template"
-	"log"
 	"net/http"
 
 	"who-live-when/internal/auth"
 	"who-live-when/internal/domain"
+	"who-live-when/internal/logger"
 )
 
 // PublicHandler handles public routes
@@ -22,6 +22,7 @@ type PublicHandler struct {
 	sessionManager     *auth.SessionManager
 	stateStore         *auth.StateStore
 	templates          *template.Template
+	logger             *logger.Logger
 }
 
 // NewPublicHandler creates a new PublicHandler
@@ -45,6 +46,7 @@ func NewPublicHandler(
 		sessionManager:     sessionManager,
 		stateStore:         stateStore,
 		templates:          LoadTemplates(),
+		logger:             logger.Default(),
 	}
 }
 
@@ -56,8 +58,10 @@ func (h *PublicHandler) HandleHome(w http.ResponseWriter, r *http.Request) {
 	// Get default week view with most viewed streamers
 	weekView, err := h.tvProgrammeService.GetDefaultWeekView(ctx)
 	if err != nil {
-		log.Printf("Error getting default week view: %v", err)
-		http.Error(w, "Failed to load home page", http.StatusInternalServerError)
+		h.logger.Error("Failed to get default week view", map[string]interface{}{
+			"error": err.Error(),
+		})
+		h.renderError(w, "Unable to load home page. Please try again later.", http.StatusInternalServerError)
 		return
 	}
 
@@ -66,7 +70,10 @@ func (h *PublicHandler) HandleHome(w http.ResponseWriter, r *http.Request) {
 	for _, streamer := range weekView.Streamers {
 		status, err := h.liveStatusService.GetLiveStatus(ctx, streamer.ID)
 		if err != nil {
-			log.Printf("Error getting live status for streamer %s: %v", streamer.ID, err)
+			h.logger.Warn("Failed to get live status for streamer", map[string]interface{}{
+				"streamer_id": streamer.ID,
+				"error":       err.Error(),
+			})
 			continue
 		}
 		liveStatuses[streamer.ID] = status
@@ -161,22 +168,39 @@ func (h *PublicHandler) HandleStreamerDetail(w http.ResponseWriter, r *http.Requ
 	// Get streamer information
 	streamer, err := h.streamerService.GetStreamer(ctx, streamerID)
 	if err != nil {
-		log.Printf("Error getting streamer: %v", err)
-		http.Error(w, "Streamer not found", http.StatusNotFound)
+		// Check if it's a not found error (from service package)
+		if streamer == nil {
+			h.logger.Warn("Streamer not found", map[string]interface{}{
+				"streamer_id": streamerID,
+			})
+			h.renderError(w, "Streamer not found", http.StatusNotFound)
+			return
+		}
+		h.logger.Error("Failed to get streamer", map[string]interface{}{
+			"streamer_id": streamerID,
+			"error":       err.Error(),
+		})
+		h.renderError(w, "Unable to load streamer information. Please try again later.", http.StatusInternalServerError)
 		return
 	}
 
 	// Get live status
 	liveStatus, err := h.liveStatusService.GetLiveStatus(ctx, streamerID)
 	if err != nil {
-		log.Printf("Error getting live status: %v", err)
+		h.logger.Warn("Failed to get live status", map[string]interface{}{
+			"streamer_id": streamerID,
+			"error":       err.Error(),
+		})
 		// Continue without live status
 	}
 
 	// Get heatmap
 	heatmap, err := h.heatmapService.GenerateHeatmap(ctx, streamerID)
 	if err != nil {
-		log.Printf("Error generating heatmap: %v", err)
+		h.logger.Warn("Failed to generate heatmap", map[string]interface{}{
+			"streamer_id": streamerID,
+			"error":       err.Error(),
+		})
 		// Continue without heatmap
 	}
 
@@ -338,8 +362,10 @@ func (h *PublicHandler) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	// Generate state token for CSRF protection
 	state, err := auth.GenerateStateToken()
 	if err != nil {
-		log.Printf("Error generating state token: %v", err)
-		http.Error(w, "Failed to initiate login", http.StatusInternalServerError)
+		h.logger.Error("Failed to generate state token", map[string]interface{}{
+			"error": err.Error(),
+		})
+		h.renderError(w, "Unable to initiate login. Please try again.", http.StatusInternalServerError)
 		return
 	}
 
@@ -364,32 +390,42 @@ func (h *PublicHandler) HandleAuthCallback(w http.ResponseWriter, r *http.Reques
 
 	// Verify state token
 	if !h.stateStore.Verify(state) {
-		log.Printf("Invalid state token")
-		http.Error(w, "Invalid state token", http.StatusBadRequest)
+		h.logger.Warn("Invalid OAuth state token", map[string]interface{}{
+			"state": state,
+		})
+		h.renderError(w, "Invalid authentication request. Please try logging in again.", http.StatusBadRequest)
 		return
 	}
 
 	// Exchange code for token
 	token, err := h.oauthConfig.Exchange(ctx, code)
 	if err != nil {
-		log.Printf("Error exchanging code for token: %v", err)
-		http.Error(w, "Failed to authenticate", http.StatusInternalServerError)
+		h.logger.Error("Failed to exchange OAuth code for token", map[string]interface{}{
+			"error": err.Error(),
+		})
+		h.renderError(w, "Authentication failed. Please try again.", http.StatusInternalServerError)
 		return
 	}
 
 	// Get user info from Google
 	userInfo, err := h.oauthConfig.GetUserInfo(ctx, token)
 	if err != nil {
-		log.Printf("Error getting user info: %v", err)
-		http.Error(w, "Failed to get user information", http.StatusInternalServerError)
+		h.logger.Error("Failed to get user info from Google", map[string]interface{}{
+			"error": err.Error(),
+		})
+		h.renderError(w, "Unable to retrieve your account information. Please try again.", http.StatusInternalServerError)
 		return
 	}
 
 	// Create or get user
 	user, err := h.userService.CreateUser(ctx, userInfo.ID, userInfo.Email)
 	if err != nil {
-		log.Printf("Error creating user: %v", err)
-		http.Error(w, "Failed to create user account", http.StatusInternalServerError)
+		h.logger.Error("Failed to create user account", map[string]interface{}{
+			"google_id": userInfo.ID,
+			"email":     userInfo.Email,
+			"error":     err.Error(),
+		})
+		h.renderError(w, "Unable to create your account. Please try again.", http.StatusInternalServerError)
 		return
 	}
 
@@ -423,4 +459,60 @@ func (h *PublicHandler) GetUserFromSession(ctx context.Context, r *http.Request)
 	}
 
 	return user, nil
+}
+
+// renderError renders a user-friendly error page
+func (h *PublicHandler) renderError(w http.ResponseWriter, message string, statusCode int) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(statusCode)
+
+	fmt.Fprintf(w, `<!DOCTYPE html>
+<html>
+<head>
+	<title>Error - Who Live When</title>
+	<style>
+		body { 
+			font-family: Arial, sans-serif; 
+			margin: 40px auto; 
+			max-width: 600px;
+			text-align: center;
+		}
+		.error-container {
+			background-color: #f8d7da;
+			border: 1px solid #f5c6cb;
+			border-radius: 5px;
+			padding: 20px;
+			margin: 20px 0;
+		}
+		.error-title {
+			color: #721c24;
+			font-size: 24px;
+			margin-bottom: 10px;
+		}
+		.error-message {
+			color: #721c24;
+			font-size: 16px;
+		}
+		.back-link {
+			margin-top: 20px;
+		}
+		.back-link a {
+			color: #007bff;
+			text-decoration: none;
+		}
+		.back-link a:hover {
+			text-decoration: underline;
+		}
+	</style>
+</head>
+<body>
+	<div class="error-container">
+		<div class="error-title">Oops! Something went wrong</div>
+		<div class="error-message">%s</div>
+	</div>
+	<div class="back-link">
+		<a href="/">← Return to Home</a>
+	</div>
+</body>
+</html>`, message)
 }

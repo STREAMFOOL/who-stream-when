@@ -10,12 +10,14 @@ import (
 	"time"
 
 	"who-live-when/internal/domain"
+	"who-live-when/internal/logger"
 )
 
 // YouTubeAdapter implements PlatformAdapter for YouTube
 type YouTubeAdapter struct {
 	apiKey     string
 	httpClient *http.Client
+	logger     *logger.Logger
 }
 
 // NewYouTubeAdapter creates a new YouTube adapter
@@ -25,6 +27,7 @@ func NewYouTubeAdapter(apiKey string) *YouTubeAdapter {
 		httpClient: &http.Client{
 			Timeout: 10 * time.Second,
 		},
+		logger: logger.Default(),
 	}
 }
 
@@ -47,12 +50,21 @@ func (y *YouTubeAdapter) GetLiveStatus(ctx context.Context, handle string) (*dom
 
 	resp, err := y.httpClient.Do(req)
 	if err != nil {
+		y.logger.Error("YouTube GetLiveStatus API request failed", map[string]interface{}{
+			"handle": handle,
+			"error":  err.Error(),
+		})
 		return nil, fmt.Errorf("failed to execute request: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
+		y.logger.Warn("YouTube GetLiveStatus API returned non-OK status", map[string]interface{}{
+			"handle":      handle,
+			"status_code": resp.StatusCode,
+			"response":    string(body),
+		})
 		return nil, fmt.Errorf("youtube api returned status %d: %s", resp.StatusCode, string(body))
 	}
 
@@ -71,6 +83,10 @@ func (y *YouTubeAdapter) GetLiveStatus(ctx context.Context, handle string) (*dom
 	}
 
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		y.logger.Error("YouTube GetLiveStatus failed to decode response", map[string]interface{}{
+			"handle": handle,
+			"error":  err.Error(),
+		})
 		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
 
@@ -163,12 +179,21 @@ func (y *YouTubeAdapter) SearchStreamer(ctx context.Context, query string) ([]*d
 
 	resp, err := y.httpClient.Do(req)
 	if err != nil {
+		y.logger.Error("YouTube SearchStreamer API request failed", map[string]interface{}{
+			"query": query,
+			"error": err.Error(),
+		})
 		return nil, fmt.Errorf("failed to execute request: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
+		y.logger.Warn("YouTube SearchStreamer API returned non-OK status", map[string]interface{}{
+			"query":       query,
+			"status_code": resp.StatusCode,
+			"response":    string(body),
+		})
 		return nil, fmt.Errorf("youtube api returned status %d: %s", resp.StatusCode, string(body))
 	}
 
@@ -187,6 +212,10 @@ func (y *YouTubeAdapter) SearchStreamer(ctx context.Context, query string) ([]*d
 	}
 
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		y.logger.Error("YouTube SearchStreamer failed to decode response", map[string]interface{}{
+			"query": query,
+			"error": err.Error(),
+		})
 		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
 
@@ -224,12 +253,21 @@ func (y *YouTubeAdapter) GetChannelInfo(ctx context.Context, handle string) (*do
 
 	resp, err := y.httpClient.Do(req)
 	if err != nil {
+		y.logger.Error("YouTube GetChannelInfo API request failed", map[string]interface{}{
+			"handle": handle,
+			"error":  err.Error(),
+		})
 		return nil, fmt.Errorf("failed to execute request: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
+		y.logger.Warn("YouTube GetChannelInfo API returned non-OK status", map[string]interface{}{
+			"handle":      handle,
+			"status_code": resp.StatusCode,
+			"response":    string(body),
+		})
 		return nil, fmt.Errorf("youtube api returned status %d: %s", resp.StatusCode, string(body))
 	}
 
@@ -247,10 +285,17 @@ func (y *YouTubeAdapter) GetChannelInfo(ctx context.Context, handle string) (*do
 	}
 
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		y.logger.Error("YouTube GetChannelInfo failed to decode response", map[string]interface{}{
+			"handle": handle,
+			"error":  err.Error(),
+		})
 		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
 
 	if len(result.Items) == 0 {
+		y.logger.Warn("YouTube channel not found", map[string]interface{}{
+			"handle": handle,
+		})
 		return nil, fmt.Errorf("channel not found")
 	}
 

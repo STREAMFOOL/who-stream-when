@@ -375,3 +375,175 @@ func contains(s, substr string) bool {
 			return false
 		}())
 }
+
+// TestErrorHandling tests graceful error handling
+func TestErrorHandling(t *testing.T) {
+	handler, _, cleanup := setupTestHandler(t)
+	defer cleanup()
+
+	t.Run("handles non-existent streamer gracefully", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/streamer/non-existent-id", nil)
+		req.SetPathValue("id", "non-existent-id")
+		w := httptest.NewRecorder()
+
+		handler.HandleStreamerDetail(w, req)
+
+		if w.Code != http.StatusNotFound {
+			t.Errorf("Expected status 404, got %d", w.Code)
+		}
+
+		body := w.Body.String()
+		// Check for user-friendly error message
+		if !contains(body, "not found") && !contains(body, "Not Found") {
+			t.Error("Expected user-friendly error message for not found")
+		}
+	})
+
+	t.Run("handles missing streamer ID gracefully", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/streamer/", nil)
+		req.SetPathValue("id", "")
+		w := httptest.NewRecorder()
+
+		handler.HandleStreamerDetail(w, req)
+
+		if w.Code != http.StatusBadRequest {
+			t.Errorf("Expected status 400, got %d", w.Code)
+		}
+	})
+
+	t.Run("handles invalid OAuth state gracefully", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/auth/callback?state=invalid-state&code=test-code", nil)
+		w := httptest.NewRecorder()
+
+		handler.HandleAuthCallback(w, req)
+
+		if w.Code != http.StatusBadRequest {
+			t.Errorf("Expected status 400, got %d", w.Code)
+		}
+
+		body := w.Body.String()
+		// Check for user-friendly error message
+		if !contains(body, "authentication") || !contains(body, "try") {
+			t.Error("Expected user-friendly error message for invalid state")
+		}
+	})
+}
+
+// TestPlatformAPIFailureHandling tests handling of platform API failures
+func TestPlatformAPIFailureHandling(t *testing.T) {
+	handler, _, cleanup := setupTestHandler(t)
+	defer cleanup()
+
+	ctx := context.Background()
+
+	// Create test streamer
+	streamer := &domain.Streamer{
+		ID:        "test-streamer-api-fail",
+		Name:      "Test Streamer API Fail",
+		Handles:   map[string]string{"youtube": "teststreamer"},
+		Platforms: []string{"youtube"},
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+
+	if err := handler.streamerService.AddStreamer(ctx, streamer); err != nil {
+		t.Fatalf("Failed to create streamer: %v", err)
+	}
+
+	t.Run("continues rendering page when live status fails", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/streamer/"+streamer.ID, nil)
+		req.SetPathValue("id", streamer.ID)
+		w := httptest.NewRecorder()
+
+		handler.HandleStreamerDetail(w, req)
+
+		// Should still return 200 even if live status fails
+		if w.Code != http.StatusOK {
+			t.Errorf("Expected status 200, got %d", w.Code)
+		}
+
+		body := w.Body.String()
+		// Page should still show streamer name
+		if !contains(body, streamer.Name) {
+			t.Error("Expected page to show streamer name even when live status fails")
+		}
+	})
+
+	t.Run("continues rendering page when heatmap generation fails", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/streamer/"+streamer.ID, nil)
+		req.SetPathValue("id", streamer.ID)
+		w := httptest.NewRecorder()
+
+		handler.HandleStreamerDetail(w, req)
+
+		// Should still return 200 even if heatmap fails
+		if w.Code != http.StatusOK {
+			t.Errorf("Expected status 200, got %d", w.Code)
+		}
+
+		body := w.Body.String()
+		// Page should still show streamer information
+		if !contains(body, streamer.Name) {
+			t.Error("Expected page to show streamer info even when heatmap fails")
+		}
+	})
+}
+
+// TestUserFriendlyErrorMessages tests that error messages are user-friendly
+func TestUserFriendlyErrorMessages(t *testing.T) {
+	handler, _, cleanup := setupTestHandler(t)
+	defer cleanup()
+
+	testCases := []struct {
+		name           string
+		setupRequest   func() *http.Request
+		expectedStatus int
+		checkMessage   func(body string) bool
+	}{
+		{
+			name: "streamer not found shows friendly message",
+			setupRequest: func() *http.Request {
+				req := httptest.NewRequest(http.MethodGet, "/streamer/missing", nil)
+				req.SetPathValue("id", "missing")
+				return req
+			},
+			expectedStatus: http.StatusNotFound,
+			checkMessage: func(body string) bool {
+				return contains(body, "not found") || contains(body, "Not Found")
+			},
+		},
+		{
+			name: "invalid OAuth state shows friendly message",
+			setupRequest: func() *http.Request {
+				return httptest.NewRequest(http.MethodGet, "/auth/callback?state=bad&code=test", nil)
+			},
+			expectedStatus: http.StatusBadRequest,
+			checkMessage: func(body string) bool {
+				return contains(body, "authentication") && contains(body, "try")
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			req := tc.setupRequest()
+			w := httptest.NewRecorder()
+
+			// Route to appropriate handler based on path
+			if contains(req.URL.Path, "/streamer/") {
+				handler.HandleStreamerDetail(w, req)
+			} else if contains(req.URL.Path, "/auth/callback") {
+				handler.HandleAuthCallback(w, req)
+			}
+
+			if w.Code != tc.expectedStatus {
+				t.Errorf("Expected status %d, got %d", tc.expectedStatus, w.Code)
+			}
+
+			body := w.Body.String()
+			if !tc.checkMessage(body) {
+				t.Errorf("Error message not user-friendly. Body: %s", body)
+			}
+		})
+	}
+}

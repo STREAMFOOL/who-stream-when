@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"who-live-when/internal/domain"
+	"who-live-when/internal/logger"
 	"who-live-when/internal/repository"
 )
 
@@ -28,7 +29,7 @@ type liveStatusService struct {
 	streamerRepo     repository.StreamerRepository
 	liveStatusRepo   repository.LiveStatusRepository
 	platformAdapters map[string]domain.PlatformAdapter
-	mu               sync.RWMutex
+	logger           *logger.Logger
 }
 
 // NewLiveStatusService creates a new LiveStatusService instance
@@ -41,6 +42,7 @@ func NewLiveStatusService(
 		streamerRepo:     streamerRepo,
 		liveStatusRepo:   liveStatusRepo,
 		platformAdapters: platformAdapters,
+		logger:           logger.Default(),
 	}
 }
 
@@ -81,9 +83,16 @@ func (l *liveStatusService) RefreshLiveStatus(ctx context.Context, streamerID st
 	// Get streamer information
 	streamer, err := l.streamerRepo.GetByID(ctx, streamerID)
 	if err != nil {
+		l.logger.Error("Failed to get streamer for live status refresh", map[string]interface{}{
+			"streamer_id": streamerID,
+			"error":       err.Error(),
+		})
 		return nil, fmt.Errorf("failed to get streamer: %w", err)
 	}
 	if streamer == nil {
+		l.logger.Warn("Streamer not found for live status refresh", map[string]interface{}{
+			"streamer_id": streamerID,
+		})
 		return nil, ErrStreamerNotFound
 	}
 
@@ -94,6 +103,10 @@ func (l *liveStatusService) RefreshLiveStatus(ctx context.Context, streamerID st
 	for _, platform := range streamer.Platforms {
 		adapter, ok := l.platformAdapters[platform]
 		if !ok {
+			l.logger.Warn("No adapter available for platform", map[string]interface{}{
+				"platform":    platform,
+				"streamer_id": streamerID,
+			})
 			lastErr = fmt.Errorf("%w: no adapter for platform %s", ErrPlatformUnavailable, platform)
 			continue
 		}
@@ -105,6 +118,12 @@ func (l *liveStatusService) RefreshLiveStatus(ctx context.Context, streamerID st
 
 		platformStatus, err := adapter.GetLiveStatus(ctx, handle)
 		if err != nil {
+			l.logger.Error("Platform adapter failed to get live status", map[string]interface{}{
+				"platform":    platform,
+				"handle":      handle,
+				"streamer_id": streamerID,
+				"error":       err.Error(),
+			})
 			lastErr = fmt.Errorf("platform %s error: %w", platform, err)
 			continue
 		}
@@ -139,13 +158,19 @@ func (l *liveStatusService) RefreshLiveStatus(ctx context.Context, streamerID st
 	if err == nil && existingStatus != nil {
 		// Update existing record
 		if err := l.liveStatusRepo.Update(ctx, liveStatus); err != nil {
-			// Log error but don't fail the request
+			l.logger.Error("Failed to update live status cache", map[string]interface{}{
+				"streamer_id": streamerID,
+				"error":       err.Error(),
+			})
 			lastErr = fmt.Errorf("failed to update cache: %w", err)
 		}
 	} else {
 		// Create new record
 		if err := l.liveStatusRepo.Create(ctx, liveStatus); err != nil {
-			// Log error but don't fail the request
+			l.logger.Error("Failed to create live status cache", map[string]interface{}{
+				"streamer_id": streamerID,
+				"error":       err.Error(),
+			})
 			lastErr = fmt.Errorf("failed to create cache: %w", err)
 		}
 	}
@@ -168,8 +193,15 @@ func (l *liveStatusService) GetAllLiveStatus(ctx context.Context) (map[string]*d
 	// Get all streamers
 	streamers, err := l.streamerRepo.List(ctx, 1000) // Large limit to get all
 	if err != nil {
+		l.logger.Error("Failed to list streamers for GetAllLiveStatus", map[string]interface{}{
+			"error": err.Error(),
+		})
 		return nil, fmt.Errorf("failed to list streamers: %w", err)
 	}
+
+	l.logger.Info("Fetching live status for all streamers", map[string]interface{}{
+		"count": len(streamers),
+	})
 
 	result := make(map[string]*domain.LiveStatus)
 	var mu sync.Mutex
@@ -183,7 +215,10 @@ func (l *liveStatusService) GetAllLiveStatus(ctx context.Context) (map[string]*d
 
 			status, err := l.GetLiveStatus(ctx, s.ID)
 			if err != nil {
-				// Skip streamers with errors
+				l.logger.Debug("Skipping streamer due to error", map[string]interface{}{
+					"streamer_id": s.ID,
+					"error":       err.Error(),
+				})
 				return
 			}
 
