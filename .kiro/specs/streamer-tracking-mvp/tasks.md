@@ -245,14 +245,14 @@ This implementation plan breaks down the feature design into discrete, manageabl
   - Test OptionalAuth allows both authenticated and unauthenticated
   - Test follow operations blocked for unregistered users
 
-- [-] 14. Implement Activity Recording and Background Tasks
+- [x] 14. Implement Activity Recording and Background Tasks
   - Create `internal/task/activity.go` for background activity tracking
   - Implement periodic task to check live status and record activity
   - Implement logic to record activity when streamer goes live
   - Store activity records with timestamps for heatmap generation
   - _Requirements: 8.4, 3.2, 3.3_
 
-- [ ] 14.1 Write unit tests for Activity Recording
+- [x] 14.1 Write unit tests for Activity Recording
   - Test activity records are created when streamer goes live
   - Test activity data is used for heatmap generation
 
