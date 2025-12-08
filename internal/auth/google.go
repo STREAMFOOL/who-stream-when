@@ -1,6 +1,8 @@
 package auth
 
 import (
+	"bytes"
+	"compress/gzip"
 	"context"
 	"crypto/rand"
 	"encoding/base64"
@@ -97,24 +99,42 @@ func GenerateStateToken() (string, error) {
 	return base64.URLEncoding.EncodeToString(b), nil
 }
 
+// GuestData represents session data for unauthenticated users
+type GuestData struct {
+	FollowedStreamerIDs []string             `json:"follows"`
+	CustomProgramme     *CustomProgrammeData `json:"programme,omitempty"`
+	CreatedAt           time.Time            `json:"created_at"`
+}
+
+// CustomProgrammeData represents a custom programme stored in session
+type CustomProgrammeData struct {
+	StreamerIDs []string  `json:"streamer_ids"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+}
+
 // SessionManager manages user sessions with secure cookies
 type SessionManager struct {
-	cookieName   string
-	cookiePath   string
-	cookieDomain string
-	secure       bool
-	httpOnly     bool
-	maxAge       int // in seconds
+	cookieName      string
+	guestCookieName string
+	cookiePath      string
+	cookieDomain    string
+	secure          bool
+	httpOnly        bool
+	maxAge          int // in seconds
+	maxCookieSize   int // maximum cookie size in bytes
 }
 
 // NewSessionManager creates a new session manager
 func NewSessionManager(cookieName string, secure bool, maxAge int) *SessionManager {
 	return &SessionManager{
-		cookieName: cookieName,
-		cookiePath: "/",
-		secure:     secure,
-		httpOnly:   true,
-		maxAge:     maxAge,
+		cookieName:      cookieName,
+		guestCookieName: "guest_data",
+		cookiePath:      "/",
+		secure:          secure,
+		httpOnly:        true,
+		maxAge:          maxAge,
+		maxCookieSize:   4000, // Leave room for cookie overhead (4KB limit)
 	}
 }
 
@@ -199,4 +219,157 @@ func (s *StateStore) Cleanup() {
 			delete(s.states, state)
 		}
 	}
+}
+
+// GetGuestFollows retrieves the list of followed streamer IDs from guest session
+func (sm *SessionManager) GetGuestFollows(r *http.Request) ([]string, error) {
+	guestData, err := sm.getGuestData(r)
+	if err != nil {
+		return []string{}, nil // Return empty slice if no guest data
+	}
+	return guestData.FollowedStreamerIDs, nil
+}
+
+// SetGuestFollows stores the list of followed streamer IDs in guest session
+func (sm *SessionManager) SetGuestFollows(w http.ResponseWriter, r *http.Request, streamerIDs []string) error {
+	// Try to get existing guest data
+	guestData, err := sm.getGuestData(r)
+	if err != nil {
+		// No existing data, create new
+		guestData = &GuestData{
+			FollowedStreamerIDs: []string{},
+			CreatedAt:           time.Now(),
+		}
+	}
+	guestData.FollowedStreamerIDs = streamerIDs
+	return sm.setGuestData(w, guestData)
+}
+
+// GetGuestProgramme retrieves the custom programme from guest session
+func (sm *SessionManager) GetGuestProgramme(r *http.Request) (*CustomProgrammeData, error) {
+	guestData, err := sm.getGuestData(r)
+	if err != nil {
+		return nil, err
+	}
+	return guestData.CustomProgramme, nil
+}
+
+// SetGuestProgramme stores the custom programme in guest session
+func (sm *SessionManager) SetGuestProgramme(w http.ResponseWriter, r *http.Request, programme *CustomProgrammeData) error {
+	// Try to get existing guest data
+	guestData, err := sm.getGuestData(r)
+	if err != nil {
+		// No existing data, create new
+		guestData = &GuestData{
+			FollowedStreamerIDs: []string{},
+			CreatedAt:           time.Now(),
+		}
+	}
+	guestData.CustomProgramme = programme
+	return sm.setGuestData(w, guestData)
+}
+
+// ClearGuestData removes all guest session data
+func (sm *SessionManager) ClearGuestData(w http.ResponseWriter) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     sm.guestCookieName,
+		Value:    "",
+		Path:     sm.cookiePath,
+		Domain:   sm.cookieDomain,
+		MaxAge:   -1,
+		Secure:   sm.secure,
+		HttpOnly: sm.httpOnly,
+		SameSite: http.SameSiteLaxMode,
+		Expires:  time.Unix(0, 0),
+	})
+}
+
+// getGuestData retrieves and deserializes guest data from cookie
+func (sm *SessionManager) getGuestData(r *http.Request) (*GuestData, error) {
+	if r == nil {
+		return nil, fmt.Errorf("request is nil")
+	}
+
+	cookie, err := r.Cookie(sm.guestCookieName)
+	if err != nil {
+		return nil, fmt.Errorf("guest data not found: %w", err)
+	}
+
+	// Decode base64
+	decoded, err := base64.URLEncoding.DecodeString(cookie.Value)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode guest data: %w", err)
+	}
+
+	// Try to decompress (if data was compressed)
+	var jsonData []byte
+	if len(decoded) > 2 && decoded[0] == 0x1f && decoded[1] == 0x8b {
+		// Gzip magic number detected
+		reader, err := gzip.NewReader(bytes.NewReader(decoded))
+		if err != nil {
+			return nil, fmt.Errorf("failed to create gzip reader: %w", err)
+		}
+		defer reader.Close()
+
+		jsonData, err = io.ReadAll(reader)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decompress guest data: %w", err)
+		}
+	} else {
+		jsonData = decoded
+	}
+
+	// Deserialize JSON
+	var guestData GuestData
+	if err := json.Unmarshal(jsonData, &guestData); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal guest data: %w", err)
+	}
+
+	return &guestData, nil
+}
+
+// setGuestData serializes and stores guest data in cookie
+func (sm *SessionManager) setGuestData(w http.ResponseWriter, guestData *GuestData) error {
+	// Serialize to JSON
+	jsonData, err := json.Marshal(guestData)
+	if err != nil {
+		return fmt.Errorf("failed to marshal guest data: %w", err)
+	}
+
+	// Check if compression is needed
+	var encoded string
+	if len(jsonData) > sm.maxCookieSize/2 {
+		// Compress data
+		var buf bytes.Buffer
+		writer := gzip.NewWriter(&buf)
+		if _, err := writer.Write(jsonData); err != nil {
+			return fmt.Errorf("failed to compress guest data: %w", err)
+		}
+		if err := writer.Close(); err != nil {
+			return fmt.Errorf("failed to close gzip writer: %w", err)
+		}
+		encoded = base64.URLEncoding.EncodeToString(buf.Bytes())
+	} else {
+		// No compression needed
+		encoded = base64.URLEncoding.EncodeToString(jsonData)
+	}
+
+	// Validate size
+	if len(encoded) > sm.maxCookieSize {
+		return fmt.Errorf("guest data exceeds maximum cookie size (%d > %d)", len(encoded), sm.maxCookieSize)
+	}
+
+	// Set cookie
+	http.SetCookie(w, &http.Cookie{
+		Name:     sm.guestCookieName,
+		Value:    encoded,
+		Path:     sm.cookiePath,
+		Domain:   sm.cookieDomain,
+		MaxAge:   sm.maxAge,
+		Secure:   sm.secure,
+		HttpOnly: sm.httpOnly,
+		SameSite: http.SameSiteLaxMode,
+	})
+
+	return nil
 }

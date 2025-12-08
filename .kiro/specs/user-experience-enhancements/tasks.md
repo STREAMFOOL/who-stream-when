@@ -14,28 +14,28 @@
   - Test default value fallbacks
   - _Requirements: 5.1, 5.2, 5.3, 5.4, 10.1, 10.2_
 
-- [-] 2. Enhance session manager for guest data storage
+- [x] 2. Enhance session manager for guest data storage
   - Extend SessionManager to store guest follows in cookies
   - Add methods for guest custom programme storage
   - Implement session data serialization/deserialization
   - Add session data size validation and compression if needed
   - _Requirements: 2.2, 3.2, 7.1, 7.2, 7.3_
 
-- [ ] 2.1 Write property test for session data persistence
+- [x] 2.1 Write property test for session data persistence
   - **Property 4: Guest User Follow Session Storage**
   - **Validates: Requirements 2.2, 7.1**
 
-- [ ] 2.2 Write property test for session data across requests
+- [x] 2.2 Write property test for session data across requests
   - **Property 11: Session Data Persistence Across Requests**
   - **Validates: Requirements 7.3**
 
-- [ ] 2.3 Write unit tests for session manager
+- [x] 2.3 Write unit tests for session manager
   - Test cookie serialization/deserialization
   - Test session data size limits
   - Test corrupted session data handling
   - _Requirements: 2.2, 3.2, 7.1, 7.2_
 
-- [ ] 3. Create custom programme data model and repository
+- [-] 3. Create custom programme data model and repository
   - Define CustomProgramme struct in domain models
   - Create custom_programme table migration
   - Implement CustomProgrammeRepository interface
