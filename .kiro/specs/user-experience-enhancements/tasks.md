@@ -1,20 +1,20 @@
 # Implementation Plan: User Experience Enhancements
 
-- [ ] 1. Implement configuration management with environment variables
+- [x] 1. Implement configuration management with environment variables
   - Create configuration service that reads from environment variables
   - Add validation for required configuration values
   - Implement configuration logging (excluding secrets)
   - Update main.go to use configuration service
   - _Requirements: 5.1, 5.2, 5.3, 5.4, 10.1, 10.2, 10.3, 10.4, 10.5_
 
-- [ ] 1.1 Write unit tests for configuration loading and validation
+- [x] 1.1 Write unit tests for configuration loading and validation
   - Test loading with valid environment variables
   - Test missing required variables
   - Test invalid format variables
   - Test default value fallbacks
   - _Requirements: 5.1, 5.2, 5.3, 5.4, 10.1, 10.2_
 
-- [ ] 2. Enhance session manager for guest data storage
+- [-] 2. Enhance session manager for guest data storage
   - Extend SessionManager to store guest follows in cookies
   - Add methods for guest custom programme storage
   - Implement session data serialization/deserialization

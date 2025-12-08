@@ -11,6 +11,7 @@ import (
 
 	"who-live-when/internal/adapter"
 	"who-live-when/internal/auth"
+	"who-live-when/internal/config"
 	"who-live-when/internal/domain"
 	"who-live-when/internal/handler"
 	"who-live-when/internal/repository/sqlite"
@@ -18,8 +19,17 @@ import (
 )
 
 func main() {
+	// Load configuration from environment variables
+	cfg, err := config.Load()
+	if err != nil {
+		log.Fatalf("Failed to load configuration: %v", err)
+	}
+
+	// Log configuration (excluding secrets)
+	cfg.LogConfiguration()
+
 	// Initialize SQLite database with WAL mode and connection pooling
-	db, err := sqlite.NewDB("./data/who-live-when.db")
+	db, err := sqlite.NewDB(cfg.DatabasePath)
 	if err != nil {
 		log.Fatalf("Failed to initialize database: %v", err)
 	}
@@ -39,11 +49,10 @@ func main() {
 	heatmapRepo := sqlite.NewHeatmapRepository(db)
 
 	// Initialize platform adapters for external streaming APIs
-	// Note: API credentials should be set via environment variables in production
 	platformAdapters := map[string]domain.PlatformAdapter{
-		"youtube": adapter.NewYouTubeAdapter(""),
+		"youtube": adapter.NewYouTubeAdapter(cfg.YouTubeAPIKey),
 		"kick":    adapter.NewKickAdapter(),
-		"twitch":  adapter.NewTwitchAdapter("", ""),
+		"twitch":  adapter.NewTwitchAdapter(cfg.TwitchClientID, cfg.TwitchSecret),
 	}
 
 	// Initialize business logic layer (services)
@@ -55,15 +64,8 @@ func main() {
 	tvProgrammeService := service.NewTVProgrammeService(heatmapService, userRepo, followRepo, streamerRepo, activityRepo)
 
 	// Initialize Google OAuth for authentication
-	clientID := os.Getenv("GOOGLE_CLIENT_ID")
-	clientSecret := os.Getenv("GOOGLE_CLIENT_SECRET")
-	redirectURL := os.Getenv("GOOGLE_REDIRECT_URL")
-	if redirectURL == "" {
-		redirectURL = "http://localhost:8080/auth/callback"
-	}
-
-	oauthConfig := auth.NewGoogleOAuthConfig(clientID, clientSecret, redirectURL)
-	sessionManager := auth.NewSessionManager("session", false, 86400*7) // 7-day session duration
+	oauthConfig := auth.NewGoogleOAuthConfig(cfg.GoogleClientID, cfg.GoogleClientSecret, cfg.GoogleRedirectURL)
+	sessionManager := auth.NewSessionManager(cfg.SessionSecret, false, cfg.SessionDuration)
 	stateStore := auth.NewStateStore()
 
 	// Initialize multi-platform search service
@@ -120,7 +122,7 @@ func main() {
 
 	// Configure HTTP server with timeouts to prevent resource exhaustion
 	server := &http.Server{
-		Addr:         ":8080",
+		Addr:         ":" + cfg.ServerPort,
 		Handler:      mux,
 		ReadTimeout:  15 * time.Second, // Max time to read request
 		WriteTimeout: 15 * time.Second, // Max time to write response
