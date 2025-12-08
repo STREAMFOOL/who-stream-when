@@ -220,7 +220,7 @@ This implementation plan breaks down the feature design into discrete, manageabl
   - Test templates render with correct data
   - Test conditional rendering (authenticated vs unregistered)
 
-- [ ] 13. Implement Access Control Middleware
+- [x] 13. Implement Access Control Middleware
   - Create `internal/middleware/auth.go` with authentication checks
   - Implement RequireAuth middleware for protected routes
   - Implement OptionalAuth middleware for routes that work both ways
@@ -228,24 +228,24 @@ This implementation plan breaks down the feature design into discrete, manageabl
   - Ensure default week view is accessible to both authenticated and unregistered users
   - _Requirements: 5.1, 5.2, 5.3, 5.4_
 
-- [ ] 13.1 Write property test for read-only user visibility
+- [x] 13.1 Write property test for read-only user visibility
   - **Property 9: Read-Only User Visibility**
   - **Validates: Requirements 5.1**
 
-- [ ] 13.2 Write property test for search access control
+- [x] 13.2 Write property test for search access control
   - **Property 10: Search Access Control**
   - **Validates: Requirements 5.2, 5.4**
 
-- [ ] 13.3 Write property test for unregistered user feature restriction
+- [x] 13.3 Write property test for unregistered user feature restriction
   - **Property 11: Unregistered User Feature Restriction**
   - **Validates: Requirements 5.3**
 
-- [ ] 13.4 Write unit tests for Access Control Middleware
+- [x] 13.4 Write unit tests for Access Control Middleware
   - Test RequireAuth blocks unauthenticated requests
   - Test OptionalAuth allows both authenticated and unauthenticated
   - Test follow operations blocked for unregistered users
 
-- [ ] 14. Implement Activity Recording and Background Tasks
+- [-] 14. Implement Activity Recording and Background Tasks
   - Create `internal/task/activity.go` for background activity tracking
   - Implement periodic task to check live status and record activity
   - Implement logic to record activity when streamer goes live
