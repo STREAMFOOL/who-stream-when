@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/user/who-live-when/internal/domain"
+	"who-live-when/internal/domain"
 )
 
 // HeatmapRepository implements repository.HeatmapRepository for SQLite

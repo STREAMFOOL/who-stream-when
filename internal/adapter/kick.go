@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/user/who-live-when/internal/domain"
+	"who-live-when/internal/domain"
 )
 
 // KickAdapter implements PlatformAdapter for Kick

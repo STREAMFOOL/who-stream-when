@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/user/who-live-when/internal/domain"
-	"github.com/user/who-live-when/internal/repository"
+	"who-live-when/internal/domain"
+	"who-live-when/internal/repository"
 )
 
 var (

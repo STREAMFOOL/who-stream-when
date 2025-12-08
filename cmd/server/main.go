@@ -9,12 +9,12 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/user/who-live-when/internal/adapter"
-	"github.com/user/who-live-when/internal/auth"
-	"github.com/user/who-live-when/internal/domain"
-	"github.com/user/who-live-when/internal/handler"
-	"github.com/user/who-live-when/internal/repository/sqlite"
-	"github.com/user/who-live-when/internal/service"
+	"who-live-when/internal/adapter"
+	"who-live-when/internal/auth"
+	"who-live-when/internal/domain"
+	"who-live-when/internal/handler"
+	"who-live-when/internal/repository/sqlite"
+	"who-live-when/internal/service"
 )
 
 func main() {

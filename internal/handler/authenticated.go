@@ -9,9 +9,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/user/who-live-when/internal/auth"
-	"github.com/user/who-live-when/internal/domain"
-	"github.com/user/who-live-when/internal/service"
+	"who-live-when/internal/auth"
+	"who-live-when/internal/domain"
+	"who-live-when/internal/service"
 )
 
 // AuthenticatedHandler handles authenticated routes

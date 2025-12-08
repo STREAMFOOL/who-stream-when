@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/user/who-live-when/internal/domain"
+	"who-live-when/internal/domain"
 )
 
 // FollowRepository implements repository.FollowRepository for SQLite

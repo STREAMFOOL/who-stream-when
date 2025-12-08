@@ -6,9 +6,10 @@ import (
 	"fmt"
 	"time"
 
+	"who-live-when/internal/domain"
+	"who-live-when/internal/repository"
+
 	"github.com/google/uuid"
-	"github.com/user/who-live-when/internal/domain"
-	"github.com/user/who-live-when/internal/repository"
 )
 
 var (

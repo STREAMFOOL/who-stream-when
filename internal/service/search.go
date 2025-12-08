@@ -6,7 +6,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/user/who-live-when/internal/domain"
+	"who-live-when/internal/domain"
 )
 
 // SearchService handles multi-platform streamer search

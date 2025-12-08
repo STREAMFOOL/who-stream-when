@@ -9,7 +9,7 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/user/who-live-when/internal/domain"
+	"who-live-when/internal/domain"
 )
 
 // YouTubeAdapter implements PlatformAdapter for YouTube

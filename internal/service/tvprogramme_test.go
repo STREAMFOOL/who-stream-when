@@ -12,8 +12,8 @@ import (
 	"github.com/leanovate/gopter/gen"
 	"github.com/leanovate/gopter/prop"
 
-	"github.com/user/who-live-when/internal/domain"
-	"github.com/user/who-live-when/internal/repository/sqlite"
+	"who-live-when/internal/domain"
+	"who-live-when/internal/repository/sqlite"
 )
 
 // setupTVProgrammeTestDB creates a test database for TV Programme tests

@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/user/who-live-when/internal/domain"
+	"who-live-when/internal/domain"
 )
 
 // StreamerRepository handles streamer data persistence

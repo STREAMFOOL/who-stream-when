@@ -7,12 +7,13 @@ import (
 	"testing"
 	"time"
 
+	"who-live-when/internal/domain"
+	"who-live-when/internal/repository/sqlite"
+
 	"github.com/google/uuid"
 	"github.com/leanovate/gopter"
 	"github.com/leanovate/gopter/gen"
 	"github.com/leanovate/gopter/prop"
-	"github.com/user/who-live-when/internal/domain"
-	"github.com/user/who-live-when/internal/repository/sqlite"
 )
 
 // setupTestDB creates a test database for heatmap service tests

@@ -9,10 +9,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/user/who-live-when/internal/auth"
-	"github.com/user/who-live-when/internal/domain"
-	"github.com/user/who-live-when/internal/repository/sqlite"
-	"github.com/user/who-live-when/internal/service"
+	"who-live-when/internal/auth"
+	"who-live-when/internal/domain"
+	"who-live-when/internal/repository/sqlite"
+	"who-live-when/internal/service"
 )
 
 // mockPlatformAdapter is a mock implementation of PlatformAdapter for testing

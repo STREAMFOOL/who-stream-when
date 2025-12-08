@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/user/who-live-when/internal/domain"
+	"who-live-when/internal/domain"
 )
 
 // LiveStatusRepository implements repository.LiveStatusRepository for SQLite

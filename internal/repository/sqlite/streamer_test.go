@@ -6,10 +6,11 @@ import (
 	"testing"
 	"time"
 
+	"who-live-when/internal/domain"
+
 	"github.com/leanovate/gopter"
 	"github.com/leanovate/gopter/gen"
 	"github.com/leanovate/gopter/prop"
-	"github.com/user/who-live-when/internal/domain"
 )
 
 // setupTestDB creates a temporary test database

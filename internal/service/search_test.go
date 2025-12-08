@@ -6,10 +6,11 @@ import (
 	"strings"
 	"testing"
 
+	"who-live-when/internal/domain"
+
 	"github.com/leanovate/gopter"
 	"github.com/leanovate/gopter/gen"
 	"github.com/leanovate/gopter/prop"
-	"github.com/user/who-live-when/internal/domain"
 )
 
 // mockSearchPlatformAdapter is a mock implementation for search testing

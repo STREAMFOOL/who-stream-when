@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/user/who-live-when/internal/domain"
+	"who-live-when/internal/domain"
 )
 
 // mockStreamerRepository is a mock implementation of StreamerRepository for testing

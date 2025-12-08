@@ -7,8 +7,8 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/user/who-live-when/internal/auth"
-	"github.com/user/who-live-when/internal/domain"
+	"who-live-when/internal/auth"
+	"who-live-when/internal/domain"
 )
 
 // PublicHandler handles public routes

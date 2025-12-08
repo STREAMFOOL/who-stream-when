@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/user/who-live-when/internal/domain"
+	"who-live-when/internal/domain"
 )
 
 // ActivityRecordRepository implements repository.ActivityRecordRepository for SQLite
