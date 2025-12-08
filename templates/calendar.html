@@ -8,70 +8,79 @@
     <p>Predicted streaming times for your followed streamers</p>
 </div>
 
-<!-- Calendar Navigation -->
-<div class="calendar-nav" hx-boost="true">
-    <a href="/calendar?week={{.PrevWeek.Format " 2006-01-02"}}" class="btn btn-secondary">← Previous Week</a>
-    <h2>Week of {{.Week.Format "January 2, 2006"}}</h2>
-    <a href="/calendar?week={{.NextWeek.Format " 2006-01-02"}}" class="btn btn-secondary">Next Week →</a>
-</div>
+<!-- Calendar Navigation with HTMX -->
+<div class="calendar-nav" id="calendar-container">
+    <div class="calendar-nav-buttons">
+        <button hx-get="/calendar?week={{.PrevWeek.Format " 2006-01-02"}}" hx-target="#calendar-container"
+            hx-swap="outerHTML" class="btn btn-secondary">
+            ← Previous Week
+        </button>
+        <h2>Week of {{.Week.Format "January 2, 2006"}}</h2>
+        <button hx-get="/calendar?week={{.NextWeek.Format " 2006-01-02"}}" hx-target="#calendar-container"
+            hx-swap="outerHTML" class="btn btn-secondary">
+            Next Week →
+        </button>
+    </div>
 
-{{if .Programme.Entries}}
-<div class="calendar-wrapper" style="overflow-x: auto;">
-    <table class="calendar-table">
-        <thead>
-            <tr>
-                <th class="time-col">Time</th>
-                <th>Sunday</th>
-                <th>Monday</th>
-                <th>Tuesday</th>
-                <th>Wednesday</th>
-                <th>Thursday</th>
-                <th>Friday</th>
-                <th>Saturday</th>
-            </tr>
-        </thead>
-        <tbody>
-            {{range $hour := seq 0 23}}
-            <tr>
-                <td class="time-col">{{printf "%02d" $hour}}:00</td>
-                {{range $day := seq 0 6}}
-                <td>
-                    {{range $.Programme.Entries}}
-                    {{if and (eq .Hour $hour) (eq .DayOfWeek $day)}}
-                    {{$streamer := index $.StreamerMap .StreamerID}}
-                    {{if $streamer}}
-                    <div class="calendar-entry">
-                        <strong>
-                            <a href="/streamer/{{.StreamerID}}">{{$streamer.Name}}</a>
-                        </strong>
-                        <span class="probability">{{printf "%.0f" (mul .Probability 100)}}% likely</span>
-                    </div>
+    {{if .Programme.Entries}}
+    <div class="calendar-wrapper" style="overflow-x: auto; margin-top: 1rem;">
+        <table class="calendar-table">
+            <thead>
+                <tr>
+                    <th class="time-col">Time</th>
+                    <th>Sunday</th>
+                    <th>Monday</th>
+                    <th>Tuesday</th>
+                    <th>Wednesday</th>
+                    <th>Thursday</th>
+                    <th>Friday</th>
+                    <th>Saturday</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{range $hour := seq 0 23}}
+                <tr>
+                    <td class="time-col">{{printf "%02d" $hour}}:00</td>
+                    {{range $day := seq 0 6}}
+                    <td>
+                        {{range $.Programme.Entries}}
+                        {{if and (eq .Hour $hour) (eq .DayOfWeek $day)}}
+                        {{$streamer := index $.StreamerMap .StreamerID}}
+                        {{if $streamer}}
+                        <div class="calendar-entry">
+                            <strong>
+                                <a href="/streamer/{{.StreamerID}}">{{$streamer.Name}}</a>
+                            </strong>
+                            <span class="probability">{{printf "%.0f" (mul .Probability 100)}}% likely</span>
+                        </div>
+                        {{end}}
+                        {{end}}
+                        {{end}}
+                    </td>
                     {{end}}
-                    {{end}}
-                    {{end}}
-                </td>
+                </tr>
                 {{end}}
-            </tr>
-            {{end}}
-        </tbody>
-    </table>
+            </tbody>
+        </table>
+    </div>
+    {{else}}
+    <div class="empty-state" style="margin-top: 2rem;">
+        <h3>No predictions available</h3>
+        <p>Follow more streamers to see their predicted live times here!</p>
+        <a href="/dashboard" class="btn btn-primary" style="margin-top: 1rem;">Go to Dashboard</a>
+    </div>
+    {{end}}
 </div>
-{{else}}
-<div class="empty-state">
-    <h3>No predictions available</h3>
-    <p>Follow more streamers to see their predicted live times here!</p>
-    <a href="/dashboard" class="btn btn-primary" style="margin-top: 1rem;">Go to Dashboard</a>
-</div>
-{{end}}
 {{end}}
 
 {{define "scripts"}}
 <script>
-    // Auto-refresh calendar every 5 minutes
-    document.body.addEventListener('htmx:load', function () {
-        setTimeout(function () {
-            htmx.ajax('GET', window.location.href, { target: 'main', swap: 'innerHTML' });
-        }, 300000);
+    // Update browser URL when navigating weeks via HTMX
+    document.body.addEventListener('htmx:afterSwap', function (event) {
+        if (event.detail.target.id === 'calendar-container') {
+            const url = new URL(event.detail.xhr.responseURL);
+            window.history.pushState({}, '', url.pathname + url.search);
+        }
     });
 </script>
 {{end}}

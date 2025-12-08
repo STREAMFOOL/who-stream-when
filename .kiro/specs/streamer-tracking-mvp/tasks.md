@@ -278,13 +278,13 @@ This implementation plan breaks down the feature design into discrete, manageabl
   - Test graceful handling of platform API failures
   - Test error messages are user-friendly
 
-- [-] 17. Checkpoint - Ensure all tests pass
+- [x] 17. Checkpoint - Ensure all tests pass
   - Run all unit tests and verify they pass
   - Run all property-based tests and verify they pass
   - Run integration tests for critical paths
   - Ask the user if questions arise
 
-- [ ] 18. Implement Calendar View Rendering
+- [x] 18. Implement Calendar View Rendering
   - Create calendar rendering logic in `internal/service/calendar.go`
   - Implement week navigation (previous/next week)
   - Implement time slot mapping for predicted live times
@@ -292,15 +292,15 @@ This implementation plan breaks down the feature design into discrete, manageabl
   - Add HTMX for week navigation without page reload
   - _Requirements: 9.1, 9.2, 9.3, 9.4_
 
-- [ ] 18.1 Write property test for calendar display accuracy
+- [x] 18.1 Write property test for calendar display accuracy
   - **Property 20: Calendar Display Accuracy**
   - **Validates: Requirements 9.1, 9.2**
 
-- [ ] 18.2 Write property test for calendar navigation consistency
+- [x] 18.2 Write property test for calendar navigation consistency
   - **Property 21: Calendar Navigation Consistency**
   - **Validates: Requirements 9.4**
 
-- [ ] 18.3 Write integration tests for Calendar View
+- [x] 18.3 Write integration tests for Calendar View
   - Test calendar displays correct week
   - Test navigation between weeks
   - Test predicted times appear in correct slots
