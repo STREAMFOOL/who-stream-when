@@ -13,6 +13,7 @@ type StreamerService interface {
 	AddStreamer(ctx context.Context, streamer *Streamer) error
 	UpdateStreamer(ctx context.Context, streamer *Streamer) error
 	GetStreamersByPlatform(ctx context.Context, platform string) ([]*Streamer, error)
+	GetOrCreateStreamer(ctx context.Context, platform, handle, name string) (*Streamer, error)
 }
 
 // LiveStatusService queries and caches live status across platforms

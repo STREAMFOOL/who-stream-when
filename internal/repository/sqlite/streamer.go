@@ -270,6 +270,23 @@ func (r *StreamerRepository) GetByPlatform(ctx context.Context, platform string)
 	return streamers, nil
 }
 
+// GetByPlatformHandle retrieves a streamer by platform and handle
+func (r *StreamerRepository) GetByPlatformHandle(ctx context.Context, platform, handle string) (*domain.Streamer, error) {
+	var streamerID string
+	err := r.db.QueryRowContext(ctx, `
+		SELECT streamer_id FROM streamer_platforms WHERE platform = ? AND handle = ?
+	`, platform, handle).Scan(&streamerID)
+
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to query streamer by platform handle: %w", err)
+	}
+
+	return r.GetByID(ctx, streamerID)
+}
+
 // loadPlatforms loads platform handles for a streamer
 func (r *StreamerRepository) loadPlatforms(ctx context.Context, streamerID string) (map[string]string, []string, error) {
 	rows, err := r.db.QueryContext(ctx,

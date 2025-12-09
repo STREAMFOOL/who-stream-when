@@ -103,6 +103,25 @@ func (m *progMockStreamerRepo) GetByPlatform(ctx context.Context, platform strin
 	return result, nil
 }
 
+func (m *progMockStreamerRepo) GetByIDs(ctx context.Context, ids []string) ([]*domain.Streamer, error) {
+	result := make([]*domain.Streamer, 0, len(ids))
+	for _, id := range ids {
+		if s, ok := m.streamers[id]; ok {
+			result = append(result, s)
+		}
+	}
+	return result, nil
+}
+
+func (m *progMockStreamerRepo) GetByPlatformHandle(ctx context.Context, platform, handle string) (*domain.Streamer, error) {
+	for _, s := range m.streamers {
+		if h, ok := s.Handles[platform]; ok && h == handle {
+			return s, nil
+		}
+	}
+	return nil, nil
+}
+
 // progMockFollowRepo is a mock implementation for programme property tests
 type progMockFollowRepo struct {
 	follows map[string]map[string]bool

@@ -35,7 +35,7 @@ func TestCalendarView_Integration(t *testing.T) {
 	// Initialize services
 	streamerService := NewStreamerService(streamerRepo)
 	heatmapService := NewHeatmapService(activityRepo, heatmapRepo)
-	userService := NewUserService(userRepo, followRepo, activityRepo)
+	userService := NewUserService(userRepo, followRepo, activityRepo, streamerRepo)
 	tvProgrammeService := NewTVProgrammeService(heatmapService, userRepo, followRepo, streamerRepo, activityRepo)
 	calendarService := NewCalendarService(tvProgrammeService, userService)
 

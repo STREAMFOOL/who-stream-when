@@ -16,6 +16,7 @@ type StreamerRepository interface {
 	Update(ctx context.Context, streamer *domain.Streamer) error
 	Delete(ctx context.Context, id string) error
 	GetByPlatform(ctx context.Context, platform string) ([]*domain.Streamer, error)
+	GetByPlatformHandle(ctx context.Context, platform, handle string) (*domain.Streamer, error)
 }
 
 // LiveStatusRepository handles live status data persistence

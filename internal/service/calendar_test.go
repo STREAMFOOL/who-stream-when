@@ -60,6 +60,10 @@ func (m *mockUserService) UnfollowStreamer(ctx context.Context, userID, streamer
 	return nil
 }
 
+func (m *mockUserService) GetStreamersByIDs(ctx context.Context, streamerIDs []string) ([]*domain.Streamer, error) {
+	return []*domain.Streamer{}, nil
+}
+
 func TestCalendarService_GetCalendarView(t *testing.T) {
 	ctx := context.Background()
 	userID := "user-1"

@@ -120,7 +120,7 @@
   - Test session expiry for guest follows
   - _Requirements: 2.1, 2.2, 2.3, 2.4_
 
-- [ ] 7. Implement streamer creation from search results
+- [x] 7. Implement streamer creation from search results
   - Add CreateStreamerFromSearchResult method to StreamerService
   - Implement GetOrCreateStreamer for idempotent streamer creation
   - Update search results UI to show "Add Streamer" option
@@ -128,15 +128,15 @@
   - Begin live status tracking when streamer is added
   - _Requirements: 8.1, 8.2, 8.3, 8.4_
 
-- [ ] 7.1 Write property test for streamer creation from search
+- [x] 7.1 Write property test for streamer creation from search
   - **Property 13: Streamer Creation from Search Result**
   - **Validates: Requirements 8.2**
 
-- [ ] 7.2 Write property test for streamer addition idempotence
+- [x] 7.2 Write property test for streamer addition idempotence
   - **Property 14: Streamer Addition Idempotence**
   - **Validates: Requirements 8.4**
 
-- [ ] 7.3 Write unit tests for streamer creation
+- [x] 7.3 Write unit tests for streamer creation
   - Test creating streamer from search result
   - Test duplicate detection
   - Test live status tracking initiation

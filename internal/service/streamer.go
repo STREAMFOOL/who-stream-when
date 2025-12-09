@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"who-live-when/internal/domain"
 	"who-live-when/internal/repository"
@@ -128,6 +129,55 @@ func (s *streamerService) GetStreamersByPlatform(ctx context.Context, platform s
 	}
 
 	return streamers, nil
+}
+
+// GetOrCreateStreamer retrieves an existing streamer by platform and handle, or creates a new one
+func (s *streamerService) GetOrCreateStreamer(ctx context.Context, platform, handle, name string) (*domain.Streamer, error) {
+	platform = strings.ToLower(platform)
+
+	if !supportedPlatforms[platform] {
+		return nil, fmt.Errorf("%w: %s", ErrInvalidPlatform, platform)
+	}
+
+	if handle == "" {
+		return nil, fmt.Errorf("%w: handle cannot be empty", ErrInvalidStreamerData)
+	}
+
+	if name == "" {
+		return nil, fmt.Errorf("%w: name cannot be empty", ErrInvalidStreamerData)
+	}
+
+	// Check if streamer already exists
+	existing, err := s.repo.GetByPlatformHandle(ctx, platform, handle)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check existing streamer: %w", err)
+	}
+
+	if existing != nil {
+		return existing, nil
+	}
+
+	// Create new streamer
+	now := time.Now()
+	streamer := &domain.Streamer{
+		ID:        generateStreamerID(),
+		Name:      name,
+		Platforms: []string{platform},
+		Handles:   map[string]string{platform: handle},
+		CreatedAt: now,
+		UpdatedAt: now,
+	}
+
+	if err := s.repo.Create(ctx, streamer); err != nil {
+		return nil, fmt.Errorf("failed to create streamer: %w", err)
+	}
+
+	return streamer, nil
+}
+
+// generateStreamerID generates a unique ID for a new streamer
+func generateStreamerID() string {
+	return fmt.Sprintf("str_%d", time.Now().UnixNano())
 }
 
 // validateStreamer validates streamer data

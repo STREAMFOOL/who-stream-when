@@ -99,6 +99,29 @@ func (m *mockStreamerRepository) GetByPlatform(ctx context.Context, platform str
 	return result, nil
 }
 
+func (m *mockStreamerRepository) GetByIDs(ctx context.Context, ids []string) ([]*domain.Streamer, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	result := make([]*domain.Streamer, 0, len(ids))
+	for _, id := range ids {
+		if s, ok := m.streamers[id]; ok {
+			result = append(result, s)
+		}
+	}
+	return result, nil
+}
+
+func (m *mockStreamerRepository) GetByPlatformHandle(ctx context.Context, platform, handle string) (*domain.Streamer, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	for _, streamer := range m.streamers {
+		if h, ok := streamer.Handles[platform]; ok && h == handle {
+			return streamer, nil
+		}
+	}
+	return nil, nil
+}
+
 // Test GetStreamer with valid ID
 func TestGetStreamer_ValidID(t *testing.T) {
 	repo := newMockStreamerRepository()
@@ -391,5 +414,136 @@ func TestGetStreamersByPlatform_InvalidPlatform(t *testing.T) {
 	}
 	if !errors.Is(err, ErrInvalidPlatform) {
 		t.Errorf("expected ErrInvalidPlatform, got %v", err)
+	}
+}
+
+// Test GetOrCreateStreamer creates new streamer when not exists
+func TestGetOrCreateStreamer_CreatesNew(t *testing.T) {
+	repo := newMockStreamerRepository()
+	service := NewStreamerService(repo)
+	ctx := context.Background()
+
+	streamer, err := service.GetOrCreateStreamer(ctx, "youtube", "new_handle", "New Streamer")
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	if streamer == nil {
+		t.Fatal("expected streamer, got nil")
+	}
+	if streamer.Name != "New Streamer" {
+		t.Errorf("expected name 'New Streamer', got '%s'", streamer.Name)
+	}
+	if streamer.Handles["youtube"] != "new_handle" {
+		t.Errorf("expected handle 'new_handle', got '%s'", streamer.Handles["youtube"])
+	}
+	if len(streamer.Platforms) != 1 || streamer.Platforms[0] != "youtube" {
+		t.Errorf("expected platforms [youtube], got %v", streamer.Platforms)
+	}
+
+	// Verify it was persisted
+	result, _ := repo.GetByPlatformHandle(ctx, "youtube", "new_handle")
+	if result == nil {
+		t.Fatal("streamer was not persisted to repository")
+	}
+}
+
+// Test GetOrCreateStreamer returns existing streamer (duplicate detection)
+func TestGetOrCreateStreamer_ReturnsExisting(t *testing.T) {
+	repo := newMockStreamerRepository()
+	service := NewStreamerService(repo)
+	ctx := context.Background()
+
+	// Create initial streamer
+	existing := &domain.Streamer{
+		ID:        "existing-id",
+		Name:      "Existing Streamer",
+		Platforms: []string{"twitch"},
+		Handles:   map[string]string{"twitch": "existing_handle"},
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+	repo.streamers["existing-id"] = existing
+
+	// Try to create same streamer
+	streamer, err := service.GetOrCreateStreamer(ctx, "twitch", "existing_handle", "Different Name")
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	// Should return existing streamer, not create new one
+	if streamer.ID != "existing-id" {
+		t.Errorf("expected ID 'existing-id', got '%s'", streamer.ID)
+	}
+	if streamer.Name != "Existing Streamer" {
+		t.Errorf("expected name 'Existing Streamer', got '%s'", streamer.Name)
+	}
+
+	// Verify no duplicate was created
+	count := len(repo.streamers)
+	if count != 1 {
+		t.Errorf("expected 1 streamer in repo, got %d", count)
+	}
+}
+
+// Test GetOrCreateStreamer with empty handle
+func TestGetOrCreateStreamer_EmptyHandle(t *testing.T) {
+	repo := newMockStreamerRepository()
+	service := NewStreamerService(repo)
+	ctx := context.Background()
+
+	_, err := service.GetOrCreateStreamer(ctx, "youtube", "", "Streamer Name")
+	if err == nil {
+		t.Fatal("expected error for empty handle, got nil")
+	}
+	if !errors.Is(err, ErrInvalidStreamerData) {
+		t.Errorf("expected ErrInvalidStreamerData, got %v", err)
+	}
+}
+
+// Test GetOrCreateStreamer with empty name
+func TestGetOrCreateStreamer_EmptyName(t *testing.T) {
+	repo := newMockStreamerRepository()
+	service := NewStreamerService(repo)
+	ctx := context.Background()
+
+	_, err := service.GetOrCreateStreamer(ctx, "youtube", "handle", "")
+	if err == nil {
+		t.Fatal("expected error for empty name, got nil")
+	}
+	if !errors.Is(err, ErrInvalidStreamerData) {
+		t.Errorf("expected ErrInvalidStreamerData, got %v", err)
+	}
+}
+
+// Test GetOrCreateStreamer with invalid platform
+func TestGetOrCreateStreamer_InvalidPlatform(t *testing.T) {
+	repo := newMockStreamerRepository()
+	service := NewStreamerService(repo)
+	ctx := context.Background()
+
+	_, err := service.GetOrCreateStreamer(ctx, "invalid_platform", "handle", "Streamer Name")
+	if err == nil {
+		t.Fatal("expected error for invalid platform, got nil")
+	}
+	if !errors.Is(err, ErrInvalidPlatform) {
+		t.Errorf("expected ErrInvalidPlatform, got %v", err)
+	}
+}
+
+// Test GetOrCreateStreamer normalizes platform to lowercase
+func TestGetOrCreateStreamer_NormalizesPlatform(t *testing.T) {
+	repo := newMockStreamerRepository()
+	service := NewStreamerService(repo)
+	ctx := context.Background()
+
+	streamer, err := service.GetOrCreateStreamer(ctx, "YouTube", "handle", "Streamer Name")
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	// Platform should be normalized to lowercase
+	if streamer.Platforms[0] != "youtube" {
+		t.Errorf("expected platform 'youtube', got '%s'", streamer.Platforms[0])
 	}
 }
