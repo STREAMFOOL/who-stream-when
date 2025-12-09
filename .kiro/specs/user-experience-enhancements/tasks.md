@@ -52,7 +52,7 @@
   - Test concurrent updates
   - _Requirements: 3.1_
 
-- [ ] 4. Implement programme service for custom programme management
+- [x] 4. Implement programme service for custom programme management
   - Create ProgrammeService with custom programme CRUD operations
   - Implement guest programme creation (session-based)
   - Implement calendar generation from custom programme
@@ -60,31 +60,31 @@
   - Add logic to determine which programme to show (custom vs global)
   - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 4.1, 4.2, 4.3, 4.4_
 
-- [ ] 4.1 Write property test for custom programme calendar filtering
+- [x] 4.1 Write property test for custom programme calendar filtering
   - **Property 8: Custom Programme Calendar Filtering**
   - **Validates: Requirements 3.3, 9.2**
 
-- [ ] 4.2 Write property test for streamer removal from programme
+- [x] 4.2 Write property test for streamer removal from programme
   - **Property 9: Streamer Removal from Programme**
   - **Validates: Requirements 3.4, 9.3**
 
-- [ ] 4.3 Write property test for global programme ranking
+- [x] 4.3 Write property test for global programme ranking
   - **Property 10: Global Programme Ranking**
   - **Validates: Requirements 4.2**
 
-- [ ] 4.4 Write unit tests for programme service
+- [x] 4.4 Write unit tests for programme service
   - Test custom programme creation and retrieval
   - Test programme updates and deletions
   - Test default to global programme when no custom programme exists
   - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 4.1, 4.2, 4.3, 4.4_
 
-- [ ] 5. Remove authentication requirements from search functionality
+- [-] 5. Remove authentication requirements from search functionality
   - Move search handler from authenticated to public handler
   - Update routing to allow unauthenticated search access
   - Update search UI to work for both authenticated and guest users
   - _Requirements: 1.1, 1.2, 1.3, 1.4_
 
-- [ ] 5.1 Write property test for multi-platform search coverage
+- [-] 5.1 Write property test for multi-platform search coverage
   - **Property 1: Multi-Platform Search Coverage**
   - **Validates: Requirements 1.2**
 
