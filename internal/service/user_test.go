@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -66,7 +67,8 @@ func TestProperty_UserSessionEstablishment(t *testing.T) {
 			userRepo := sqlite.NewUserRepository(db)
 			followRepo := sqlite.NewFollowRepository(db)
 			activityRepo := sqlite.NewActivityRecordRepository(db)
-			userService := NewUserService(userRepo, followRepo, activityRepo)
+			streamerRepo := sqlite.NewStreamerRepository(db)
+			userService := NewUserService(userRepo, followRepo, activityRepo, streamerRepo)
 
 			ctx := context.Background()
 
@@ -154,7 +156,7 @@ func TestProperty_FollowOperationIdempotence(t *testing.T) {
 			followRepo := sqlite.NewFollowRepository(db)
 			activityRepo := sqlite.NewActivityRecordRepository(db)
 			streamerRepo := sqlite.NewStreamerRepository(db)
-			userService := NewUserService(userRepo, followRepo, activityRepo)
+			userService := NewUserService(userRepo, followRepo, activityRepo, streamerRepo)
 
 			ctx := context.Background()
 
@@ -273,7 +275,7 @@ func TestProperty_UnfollowRemovesRelationship(t *testing.T) {
 			followRepo := sqlite.NewFollowRepository(db)
 			activityRepo := sqlite.NewActivityRecordRepository(db)
 			streamerRepo := sqlite.NewStreamerRepository(db)
-			userService := NewUserService(userRepo, followRepo, activityRepo)
+			userService := NewUserService(userRepo, followRepo, activityRepo, streamerRepo)
 
 			ctx := context.Background()
 
@@ -387,7 +389,7 @@ func TestProperty_FollowedStreamerVisibility(t *testing.T) {
 			followRepo := sqlite.NewFollowRepository(db)
 			activityRepo := sqlite.NewActivityRecordRepository(db)
 			streamerRepo := sqlite.NewStreamerRepository(db)
-			userService := NewUserService(userRepo, followRepo, activityRepo)
+			userService := NewUserService(userRepo, followRepo, activityRepo, streamerRepo)
 
 			ctx := context.Background()
 
@@ -520,7 +522,7 @@ func TestProperty_ActivityTrackingOnFollow(t *testing.T) {
 			followRepo := sqlite.NewFollowRepository(db)
 			activityRepo := sqlite.NewActivityRecordRepository(db)
 			streamerRepo := sqlite.NewStreamerRepository(db)
-			userService := NewUserService(userRepo, followRepo, activityRepo)
+			userService := NewUserService(userRepo, followRepo, activityRepo, streamerRepo)
 
 			ctx := context.Background()
 
@@ -624,6 +626,244 @@ func TestProperty_ActivityTrackingOnFollow(t *testing.T) {
 	properties.TestingRun(t)
 }
 
+// **Feature: user-experience-enhancements, Property 3: Registered User Follow Persistence**
+// **Validates: Requirements 2.1**
+// For any registered user and streamer, following the streamer then retrieving follows
+// should include that streamer in the results.
+func TestProperty_RegisteredUserFollowPersistence(t *testing.T) {
+	parameters := gopter.DefaultTestParameters()
+	parameters.MinSuccessfulTests = 100
+	properties := gopter.NewProperties(parameters)
+
+	properties.Property("following a streamer persists in database and is retrievable", prop.ForAll(
+		func(googleID string, email string, streamerName string) bool {
+			db := setupTestDB(t)
+			defer db.Close()
+
+			userRepo := sqlite.NewUserRepository(db)
+			followRepo := sqlite.NewFollowRepository(db)
+			activityRepo := sqlite.NewActivityRecordRepository(db)
+			streamerRepo := sqlite.NewStreamerRepository(db)
+			userService := NewUserService(userRepo, followRepo, activityRepo, streamerRepo)
+
+			ctx := context.Background()
+
+			// Create user
+			user, err := userService.CreateUser(ctx, googleID, email)
+			if err != nil {
+				t.Logf("Failed to create user: %v", err)
+				return false
+			}
+
+			// Create streamer
+			streamer := &domain.Streamer{
+				ID:        uuid.New().String(),
+				Name:      streamerName,
+				Handles:   map[string]string{"youtube": streamerName},
+				Platforms: []string{"youtube"},
+				CreatedAt: time.Now(),
+				UpdatedAt: time.Now(),
+			}
+			if err := streamerRepo.Create(ctx, streamer); err != nil {
+				t.Logf("Failed to create streamer: %v", err)
+				return false
+			}
+
+			// Follow the streamer
+			if err := userService.FollowStreamer(ctx, user.ID, streamer.ID); err != nil {
+				t.Logf("Failed to follow streamer: %v", err)
+				return false
+			}
+
+			// Retrieve follows
+			follows, err := userService.GetUserFollows(ctx, user.ID)
+			if err != nil {
+				t.Logf("Failed to get user follows: %v", err)
+				return false
+			}
+
+			// Verify the streamer is in the follows list
+			found := false
+			for _, f := range follows {
+				if f.ID == streamer.ID {
+					found = true
+					break
+				}
+			}
+
+			if !found {
+				t.Logf("Streamer %s not found in follows list", streamer.ID)
+				return false
+			}
+
+			return true
+		},
+		gen.Identifier().SuchThat(func(v string) bool { return v != "" }),
+		gen.Identifier().Map(func(s string) string { return s + "@example.com" }),
+		gen.Identifier().SuchThat(func(v string) bool { return v != "" }),
+	))
+
+	properties.TestingRun(t)
+}
+
+// **Feature: user-experience-enhancements, Property 5: Follow List Completeness**
+// **Validates: Requirements 2.3**
+// For any user (registered or guest) with a set of follows, retrieving their follows
+// should return all followed streamers without omissions.
+func TestProperty_FollowListCompleteness(t *testing.T) {
+	parameters := gopter.DefaultTestParameters()
+	parameters.MinSuccessfulTests = 100
+	properties := gopter.NewProperties(parameters)
+
+	// Test registered user follow list completeness
+	properties.Property("registered user follow list contains all followed streamers", prop.ForAll(
+		func(googleID string, email string, numStreamers int) bool {
+			db := setupTestDB(t)
+			defer db.Close()
+
+			userRepo := sqlite.NewUserRepository(db)
+			followRepo := sqlite.NewFollowRepository(db)
+			activityRepo := sqlite.NewActivityRecordRepository(db)
+			streamerRepo := sqlite.NewStreamerRepository(db)
+			userService := NewUserService(userRepo, followRepo, activityRepo, streamerRepo)
+
+			ctx := context.Background()
+
+			// Create user
+			user, err := userService.CreateUser(ctx, googleID, email)
+			if err != nil {
+				t.Logf("Failed to create user: %v", err)
+				return false
+			}
+
+			// Create multiple streamers and follow them
+			expectedIDs := make(map[string]bool)
+			for i := 0; i < numStreamers; i++ {
+				streamer := &domain.Streamer{
+					ID:        uuid.New().String(),
+					Name:      fmt.Sprintf("Streamer%d", i),
+					Handles:   map[string]string{"youtube": fmt.Sprintf("streamer%d", i)},
+					Platforms: []string{"youtube"},
+					CreatedAt: time.Now(),
+					UpdatedAt: time.Now(),
+				}
+				if err := streamerRepo.Create(ctx, streamer); err != nil {
+					t.Logf("Failed to create streamer: %v", err)
+					return false
+				}
+
+				if err := userService.FollowStreamer(ctx, user.ID, streamer.ID); err != nil {
+					t.Logf("Failed to follow streamer: %v", err)
+					return false
+				}
+				expectedIDs[streamer.ID] = true
+			}
+
+			// Retrieve follows
+			follows, err := userService.GetUserFollows(ctx, user.ID)
+			if err != nil {
+				t.Logf("Failed to get user follows: %v", err)
+				return false
+			}
+
+			// Verify count matches
+			if len(follows) != numStreamers {
+				t.Logf("Expected %d follows, got %d", numStreamers, len(follows))
+				return false
+			}
+
+			// Verify all followed streamers are present (completeness)
+			for _, follow := range follows {
+				if !expectedIDs[follow.ID] {
+					t.Logf("Unexpected streamer %s in follows", follow.ID)
+					return false
+				}
+				delete(expectedIDs, follow.ID)
+			}
+
+			// Verify no streamers are missing
+			if len(expectedIDs) != 0 {
+				t.Logf("Missing %d streamers from follows", len(expectedIDs))
+				return false
+			}
+
+			return true
+		},
+		gen.Identifier().SuchThat(func(v string) bool { return v != "" }),
+		gen.Identifier().Map(func(s string) string { return s + "@example.com" }),
+		gen.IntRange(1, 20), // Number of streamers to follow
+	))
+
+	// Test guest user follow list completeness via GetStreamersByIDs
+	properties.Property("guest user follow list contains all requested streamers", prop.ForAll(
+		func(numStreamers int) bool {
+			db := setupTestDB(t)
+			defer db.Close()
+
+			userRepo := sqlite.NewUserRepository(db)
+			followRepo := sqlite.NewFollowRepository(db)
+			activityRepo := sqlite.NewActivityRecordRepository(db)
+			streamerRepo := sqlite.NewStreamerRepository(db)
+			userService := NewUserService(userRepo, followRepo, activityRepo, streamerRepo)
+
+			ctx := context.Background()
+
+			// Create multiple streamers
+			streamerIDs := make([]string, numStreamers)
+			expectedIDs := make(map[string]bool)
+			for i := 0; i < numStreamers; i++ {
+				streamer := &domain.Streamer{
+					ID:        uuid.New().String(),
+					Name:      fmt.Sprintf("Streamer%d", i),
+					Handles:   map[string]string{"youtube": fmt.Sprintf("streamer%d", i)},
+					Platforms: []string{"youtube"},
+					CreatedAt: time.Now(),
+					UpdatedAt: time.Now(),
+				}
+				if err := streamerRepo.Create(ctx, streamer); err != nil {
+					t.Logf("Failed to create streamer: %v", err)
+					return false
+				}
+				streamerIDs[i] = streamer.ID
+				expectedIDs[streamer.ID] = true
+			}
+
+			// Retrieve streamers by IDs (simulating guest follow retrieval)
+			streamers, err := userService.GetStreamersByIDs(ctx, streamerIDs)
+			if err != nil {
+				t.Logf("Failed to get streamers by IDs: %v", err)
+				return false
+			}
+
+			// Verify count matches
+			if len(streamers) != numStreamers {
+				t.Logf("Expected %d streamers, got %d", numStreamers, len(streamers))
+				return false
+			}
+
+			// Verify all requested streamers are present (completeness)
+			for _, streamer := range streamers {
+				if !expectedIDs[streamer.ID] {
+					t.Logf("Unexpected streamer %s in results", streamer.ID)
+					return false
+				}
+				delete(expectedIDs, streamer.ID)
+			}
+
+			// Verify no streamers are missing
+			if len(expectedIDs) != 0 {
+				t.Logf("Missing %d streamers from results", len(expectedIDs))
+				return false
+			}
+
+			return true
+		},
+		gen.IntRange(1, 20), // Number of streamers
+	))
+
+	properties.TestingRun(t)
+}
+
 // Unit Tests for User Service
 
 func TestCreateUser_WithGoogleOAuthData(t *testing.T) {
@@ -633,7 +873,8 @@ func TestCreateUser_WithGoogleOAuthData(t *testing.T) {
 	userRepo := sqlite.NewUserRepository(db)
 	followRepo := sqlite.NewFollowRepository(db)
 	activityRepo := sqlite.NewActivityRecordRepository(db)
-	userService := NewUserService(userRepo, followRepo, activityRepo)
+	streamerRepo := sqlite.NewStreamerRepository(db)
+	userService := NewUserService(userRepo, followRepo, activityRepo, streamerRepo)
 
 	ctx := context.Background()
 
@@ -674,7 +915,8 @@ func TestCreateUser_EmptyGoogleID(t *testing.T) {
 	userRepo := sqlite.NewUserRepository(db)
 	followRepo := sqlite.NewFollowRepository(db)
 	activityRepo := sqlite.NewActivityRecordRepository(db)
-	userService := NewUserService(userRepo, followRepo, activityRepo)
+	streamerRepo := sqlite.NewStreamerRepository(db)
+	userService := NewUserService(userRepo, followRepo, activityRepo, streamerRepo)
 
 	ctx := context.Background()
 
@@ -691,7 +933,8 @@ func TestCreateUser_EmptyEmail(t *testing.T) {
 	userRepo := sqlite.NewUserRepository(db)
 	followRepo := sqlite.NewFollowRepository(db)
 	activityRepo := sqlite.NewActivityRecordRepository(db)
-	userService := NewUserService(userRepo, followRepo, activityRepo)
+	streamerRepo := sqlite.NewStreamerRepository(db)
+	userService := NewUserService(userRepo, followRepo, activityRepo, streamerRepo)
 
 	ctx := context.Background()
 
@@ -709,7 +952,7 @@ func TestFollowStreamer_AndUnfollowStreamer(t *testing.T) {
 	followRepo := sqlite.NewFollowRepository(db)
 	activityRepo := sqlite.NewActivityRecordRepository(db)
 	streamerRepo := sqlite.NewStreamerRepository(db)
-	userService := NewUserService(userRepo, followRepo, activityRepo)
+	userService := NewUserService(userRepo, followRepo, activityRepo, streamerRepo)
 
 	ctx := context.Background()
 
@@ -772,7 +1015,7 @@ func TestGetUserFollows_ReturnsAllFollowedStreamers(t *testing.T) {
 	followRepo := sqlite.NewFollowRepository(db)
 	activityRepo := sqlite.NewActivityRecordRepository(db)
 	streamerRepo := sqlite.NewStreamerRepository(db)
-	userService := NewUserService(userRepo, followRepo, activityRepo)
+	userService := NewUserService(userRepo, followRepo, activityRepo, streamerRepo)
 
 	ctx := context.Background()
 
@@ -849,7 +1092,8 @@ func TestFollowStreamer_EmptyUserID(t *testing.T) {
 	userRepo := sqlite.NewUserRepository(db)
 	followRepo := sqlite.NewFollowRepository(db)
 	activityRepo := sqlite.NewActivityRecordRepository(db)
-	userService := NewUserService(userRepo, followRepo, activityRepo)
+	streamerRepo := sqlite.NewStreamerRepository(db)
+	userService := NewUserService(userRepo, followRepo, activityRepo, streamerRepo)
 
 	ctx := context.Background()
 
@@ -866,7 +1110,8 @@ func TestFollowStreamer_EmptyStreamerID(t *testing.T) {
 	userRepo := sqlite.NewUserRepository(db)
 	followRepo := sqlite.NewFollowRepository(db)
 	activityRepo := sqlite.NewActivityRecordRepository(db)
-	userService := NewUserService(userRepo, followRepo, activityRepo)
+	streamerRepo := sqlite.NewStreamerRepository(db)
+	userService := NewUserService(userRepo, followRepo, activityRepo, streamerRepo)
 
 	ctx := context.Background()
 
@@ -883,7 +1128,8 @@ func TestGetUser_EmptyID(t *testing.T) {
 	userRepo := sqlite.NewUserRepository(db)
 	followRepo := sqlite.NewFollowRepository(db)
 	activityRepo := sqlite.NewActivityRecordRepository(db)
-	userService := NewUserService(userRepo, followRepo, activityRepo)
+	streamerRepo := sqlite.NewStreamerRepository(db)
+	userService := NewUserService(userRepo, followRepo, activityRepo, streamerRepo)
 
 	ctx := context.Background()
 

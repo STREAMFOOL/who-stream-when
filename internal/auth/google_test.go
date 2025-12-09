@@ -380,3 +380,213 @@ func TestSessionManager_GuestData_PreservesExisting(t *testing.T) {
 		t.Errorf("Expected %d programme streamers, got %d", len(programme.StreamerIDs), len(retrievedProgramme.StreamerIDs))
 	}
 }
+
+// Tests for dual-storage follow functionality (Requirements 2.1, 2.2, 2.3, 2.4)
+
+func TestSessionManager_GuestFollows_SessionExpiry(t *testing.T) {
+	// Create session manager with very short expiry (1 second)
+	sessionManager := NewSessionManager("test-session", false, 1)
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/", nil)
+	streamerIDs := []string{"streamer1", "streamer2"}
+
+	// Set guest follows
+	err := sessionManager.SetGuestFollows(w, req, streamerIDs)
+	if err != nil {
+		t.Fatalf("Failed to set guest follows: %v", err)
+	}
+
+	// Verify cookie has correct MaxAge
+	cookies := w.Result().Cookies()
+	if len(cookies) == 0 {
+		t.Fatal("No cookies set")
+	}
+
+	guestCookie := cookies[0]
+	if guestCookie.MaxAge != 1 {
+		t.Errorf("Expected MaxAge of 1, got %d", guestCookie.MaxAge)
+	}
+
+	// Verify the cookie name is correct
+	if guestCookie.Name != "guest_data" {
+		t.Errorf("Expected cookie name 'guest_data', got %s", guestCookie.Name)
+	}
+}
+
+func TestSessionManager_GuestFollows_FollowUnfollow(t *testing.T) {
+	sessionManager := NewSessionManager("test-session", false, 3600)
+
+	// Initial state: no follows
+	req1 := httptest.NewRequest("GET", "/", nil)
+	follows, err := sessionManager.GetGuestFollows(req1)
+	if err != nil {
+		t.Fatalf("Failed to get initial guest follows: %v", err)
+	}
+	if len(follows) != 0 {
+		t.Errorf("Expected 0 initial follows, got %d", len(follows))
+	}
+
+	// Follow first streamer
+	w1 := httptest.NewRecorder()
+	err = sessionManager.SetGuestFollows(w1, req1, []string{"streamer1"})
+	if err != nil {
+		t.Fatalf("Failed to follow first streamer: %v", err)
+	}
+
+	// Create request with cookie
+	req2 := httptest.NewRequest("GET", "/", nil)
+	for _, cookie := range w1.Result().Cookies() {
+		req2.AddCookie(cookie)
+	}
+
+	// Verify first follow
+	follows, err = sessionManager.GetGuestFollows(req2)
+	if err != nil {
+		t.Fatalf("Failed to get follows after first follow: %v", err)
+	}
+	if len(follows) != 1 || follows[0] != "streamer1" {
+		t.Errorf("Expected [streamer1], got %v", follows)
+	}
+
+	// Follow second streamer
+	w2 := httptest.NewRecorder()
+	err = sessionManager.SetGuestFollows(w2, req2, []string{"streamer1", "streamer2"})
+	if err != nil {
+		t.Fatalf("Failed to follow second streamer: %v", err)
+	}
+
+	// Create request with updated cookie
+	req3 := httptest.NewRequest("GET", "/", nil)
+	for _, cookie := range w2.Result().Cookies() {
+		req3.AddCookie(cookie)
+	}
+
+	// Verify both follows
+	follows, err = sessionManager.GetGuestFollows(req3)
+	if err != nil {
+		t.Fatalf("Failed to get follows after second follow: %v", err)
+	}
+	if len(follows) != 2 {
+		t.Errorf("Expected 2 follows, got %d", len(follows))
+	}
+
+	// Unfollow first streamer (remove from list)
+	w3 := httptest.NewRecorder()
+	err = sessionManager.SetGuestFollows(w3, req3, []string{"streamer2"})
+	if err != nil {
+		t.Fatalf("Failed to unfollow first streamer: %v", err)
+	}
+
+	// Create request with updated cookie
+	req4 := httptest.NewRequest("GET", "/", nil)
+	for _, cookie := range w3.Result().Cookies() {
+		req4.AddCookie(cookie)
+	}
+
+	// Verify unfollow
+	follows, err = sessionManager.GetGuestFollows(req4)
+	if err != nil {
+		t.Fatalf("Failed to get follows after unfollow: %v", err)
+	}
+	if len(follows) != 1 || follows[0] != "streamer2" {
+		t.Errorf("Expected [streamer2], got %v", follows)
+	}
+}
+
+func TestSessionManager_GuestFollows_NoCookieReturnsEmpty(t *testing.T) {
+	sessionManager := NewSessionManager("test-session", false, 3600)
+
+	// Request without any cookies
+	req := httptest.NewRequest("GET", "/", nil)
+
+	follows, err := sessionManager.GetGuestFollows(req)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if len(follows) != 0 {
+		t.Errorf("Expected empty follows for request without cookie, got %v", follows)
+	}
+}
+
+func TestSessionManager_GuestFollows_ClearRemovesAllFollows(t *testing.T) {
+	sessionManager := NewSessionManager("test-session", false, 3600)
+
+	// Set some follows
+	w1 := httptest.NewRecorder()
+	req1 := httptest.NewRequest("GET", "/", nil)
+	err := sessionManager.SetGuestFollows(w1, req1, []string{"streamer1", "streamer2", "streamer3"})
+	if err != nil {
+		t.Fatalf("Failed to set guest follows: %v", err)
+	}
+
+	// Verify follows were set
+	req2 := httptest.NewRequest("GET", "/", nil)
+	for _, cookie := range w1.Result().Cookies() {
+		req2.AddCookie(cookie)
+	}
+	follows, _ := sessionManager.GetGuestFollows(req2)
+	if len(follows) != 3 {
+		t.Fatalf("Expected 3 follows, got %d", len(follows))
+	}
+
+	// Clear guest data
+	w2 := httptest.NewRecorder()
+	sessionManager.ClearGuestData(w2)
+
+	// Create request with cleared cookie
+	req3 := httptest.NewRequest("GET", "/", nil)
+	for _, cookie := range w2.Result().Cookies() {
+		req3.AddCookie(cookie)
+	}
+
+	// Verify follows are cleared
+	follows, err = sessionManager.GetGuestFollows(req3)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if len(follows) != 0 {
+		t.Errorf("Expected 0 follows after clear, got %d", len(follows))
+	}
+}
+
+func TestSessionManager_GuestFollows_IdempotentFollow(t *testing.T) {
+	sessionManager := NewSessionManager("test-session", false, 3600)
+
+	// Follow same streamer multiple times (simulating idempotent follow)
+	w1 := httptest.NewRecorder()
+	req1 := httptest.NewRequest("GET", "/", nil)
+
+	// First follow
+	err := sessionManager.SetGuestFollows(w1, req1, []string{"streamer1"})
+	if err != nil {
+		t.Fatalf("Failed first follow: %v", err)
+	}
+
+	// Create request with cookie
+	req2 := httptest.NewRequest("GET", "/", nil)
+	for _, cookie := range w1.Result().Cookies() {
+		req2.AddCookie(cookie)
+	}
+
+	// "Follow" again (same list - idempotent)
+	w2 := httptest.NewRecorder()
+	err = sessionManager.SetGuestFollows(w2, req2, []string{"streamer1"})
+	if err != nil {
+		t.Fatalf("Failed second follow: %v", err)
+	}
+
+	// Verify still only one follow
+	req3 := httptest.NewRequest("GET", "/", nil)
+	for _, cookie := range w2.Result().Cookies() {
+		req3.AddCookie(cookie)
+	}
+
+	follows, err := sessionManager.GetGuestFollows(req3)
+	if err != nil {
+		t.Fatalf("Failed to get follows: %v", err)
+	}
+	if len(follows) != 1 {
+		t.Errorf("Expected 1 follow (idempotent), got %d", len(follows))
+	}
+}

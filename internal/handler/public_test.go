@@ -4,6 +4,8 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
+	"strings"
 	"testing"
 	"time"
 
@@ -12,6 +14,21 @@ import (
 	"who-live-when/internal/repository/sqlite"
 	"who-live-when/internal/service"
 )
+
+// emptySearchMockAdapter returns empty results for all searches
+type emptySearchMockAdapter struct{}
+
+func (m *emptySearchMockAdapter) GetLiveStatus(ctx context.Context, handle string) (*domain.PlatformLiveStatus, error) {
+	return nil, nil
+}
+
+func (m *emptySearchMockAdapter) SearchStreamer(ctx context.Context, query string) ([]*domain.PlatformStreamer, error) {
+	return []*domain.PlatformStreamer{}, nil
+}
+
+func (m *emptySearchMockAdapter) GetChannelInfo(ctx context.Context, handle string) (*domain.PlatformChannelInfo, error) {
+	return nil, nil
+}
 
 // setupTestHandler creates a test handler with in-memory database
 func setupTestHandler(t *testing.T) (*PublicHandler, *sqlite.DB, func()) {
@@ -48,6 +65,12 @@ func setupTestHandler(t *testing.T) (*PublicHandler, *sqlite.DB, func()) {
 	userService := service.NewUserService(userRepo, followRepo, activityRepo)
 	tvProgrammeService := service.NewTVProgrammeService(heatmapService, userRepo, followRepo, streamerRepo, activityRepo)
 
+	// Initialize mock platform adapters for search
+	mockYouTube := newMockPlatformAdapter("youtube")
+	mockKick := newMockPlatformAdapter("kick")
+	mockTwitch := newMockPlatformAdapter("twitch")
+	searchService := service.NewSearchService(mockYouTube, mockKick, mockTwitch)
+
 	// Initialize OAuth configuration (with dummy values for testing)
 	oauthConfig := auth.NewGoogleOAuthConfig("test-client-id", "test-client-secret", "http://localhost:8080/auth/callback")
 	sessionManager := auth.NewSessionManager("test-session", false, 3600)
@@ -60,6 +83,7 @@ func setupTestHandler(t *testing.T) (*PublicHandler, *sqlite.DB, func()) {
 		liveStatusService,
 		heatmapService,
 		userService,
+		searchService,
 		oauthConfig,
 		sessionManager,
 		stateStore,
@@ -545,5 +569,194 @@ func TestUserFriendlyErrorMessages(t *testing.T) {
 				t.Errorf("Error message not user-friendly. Body: %s", body)
 			}
 		})
+	}
+}
+
+// TestHandleSearch_UnauthenticatedAccess tests that search is accessible without authentication
+func TestHandleSearch_UnauthenticatedAccess(t *testing.T) {
+	handler, _, cleanup := setupTestHandler(t)
+	defer cleanup()
+
+	t.Run("allows unauthenticated search access", func(t *testing.T) {
+		form := url.Values{}
+		form.Add("query", "test streamer")
+
+		req := httptest.NewRequest(http.MethodPost, "/search", strings.NewReader(form.Encode()))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		w := httptest.NewRecorder()
+
+		handler.HandleSearch(w, req)
+
+		// Should return 200 OK, not redirect to login
+		if w.Code != http.StatusOK {
+			t.Errorf("Expected status 200 for unauthenticated search, got %d", w.Code)
+		}
+	})
+
+	t.Run("rejects GET method", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/search?query=test", nil)
+		w := httptest.NewRecorder()
+
+		handler.HandleSearch(w, req)
+
+		if w.Code != http.StatusMethodNotAllowed {
+			t.Errorf("Expected status 405 for GET request, got %d", w.Code)
+		}
+	})
+
+	t.Run("requires query parameter", func(t *testing.T) {
+		form := url.Values{}
+		form.Add("query", "")
+
+		req := httptest.NewRequest(http.MethodPost, "/search", strings.NewReader(form.Encode()))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		w := httptest.NewRecorder()
+
+		handler.HandleSearch(w, req)
+
+		if w.Code != http.StatusBadRequest {
+			t.Errorf("Expected status 400 for empty query, got %d", w.Code)
+		}
+	})
+}
+
+// TestHandleSearch_NoResults tests search with no results
+func TestHandleSearch_NoResults(t *testing.T) {
+	// Create handler with mock adapters that return empty results
+	db, err := sqlite.NewDB(":memory:")
+	if err != nil {
+		t.Fatalf("Failed to create test database: %v", err)
+	}
+	defer db.Close()
+
+	if err := sqlite.Migrate(db.DB); err != nil {
+		t.Fatalf("Failed to run migrations: %v", err)
+	}
+
+	// Initialize repositories
+	streamerRepo := sqlite.NewStreamerRepository(db)
+	userRepo := sqlite.NewUserRepository(db)
+	followRepo := sqlite.NewFollowRepository(db)
+	activityRepo := sqlite.NewActivityRecordRepository(db)
+	liveStatusRepo := sqlite.NewLiveStatusRepository(db)
+	heatmapRepo := sqlite.NewHeatmapRepository(db)
+
+	// Initialize services
+	streamerService := service.NewStreamerService(streamerRepo)
+	heatmapService := service.NewHeatmapService(activityRepo, heatmapRepo)
+	liveStatusService := service.NewLiveStatusService(streamerRepo, liveStatusRepo, make(map[string]domain.PlatformAdapter))
+	userService := service.NewUserService(userRepo, followRepo, activityRepo)
+	tvProgrammeService := service.NewTVProgrammeService(heatmapService, userRepo, followRepo, streamerRepo, activityRepo)
+
+	// Create mock adapters that return empty results
+	emptyMock := &emptySearchMockAdapter{}
+	searchService := service.NewSearchService(emptyMock, emptyMock, emptyMock)
+
+	oauthConfig := auth.NewGoogleOAuthConfig("test-client-id", "test-client-secret", "http://localhost:8080/auth/callback")
+	sessionManager := auth.NewSessionManager("test-session", false, 3600)
+	stateStore := auth.NewStateStore()
+
+	handler := NewPublicHandler(
+		tvProgrammeService,
+		streamerService,
+		liveStatusService,
+		heatmapService,
+		userService,
+		searchService,
+		oauthConfig,
+		sessionManager,
+		stateStore,
+	)
+
+	form := url.Values{}
+	form.Add("query", "nonexistent streamer xyz123")
+
+	req := httptest.NewRequest(http.MethodPost, "/search", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	w := httptest.NewRecorder()
+
+	handler.HandleSearch(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("Expected status 200, got %d", w.Code)
+	}
+
+	body := w.Body.String()
+	// Should show "no results" message
+	if !contains(body, "No") || !contains(body, "found") {
+		t.Error("Expected 'no results found' message in response")
+	}
+}
+
+// TestHandleSearch_ResultDisplay tests that search results are displayed correctly
+func TestHandleSearch_ResultDisplay(t *testing.T) {
+	handler, _, cleanup := setupTestHandler(t)
+	defer cleanup()
+
+	// The mock adapters return results based on query (query + "_handle", query + " Streamer")
+	form := url.Values{}
+	form.Add("query", "gamer")
+
+	req := httptest.NewRequest(http.MethodPost, "/search", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	w := httptest.NewRecorder()
+
+	handler.HandleSearch(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("Expected status 200, got %d", w.Code)
+	}
+
+	body := w.Body.String()
+
+	// Should display search results with streamer names (mock returns "gamer Streamer")
+	if !contains(body, "gamer Streamer") && !contains(body, "Streamer") {
+		t.Error("Expected search results to contain streamer names")
+	}
+
+	// Should show login prompt for guest users
+	if !contains(body, "Login") && !contains(body, "login") {
+		t.Error("Expected login prompt for guest users")
+	}
+}
+
+// TestHandleSearch_AuthenticatedUser tests search for authenticated users
+func TestHandleSearch_AuthenticatedUser(t *testing.T) {
+	handler, _, cleanup := setupTestHandler(t)
+	defer cleanup()
+
+	// Create a test user
+	ctx := context.Background()
+	user, err := handler.userService.CreateUser(ctx, "test-google-id", "test@example.com")
+	if err != nil {
+		t.Fatalf("Failed to create test user: %v", err)
+	}
+
+	// Set up session
+	w := httptest.NewRecorder()
+	handler.sessionManager.SetSession(w, user.ID)
+
+	form := url.Values{}
+	form.Add("query", "test streamer")
+
+	req := httptest.NewRequest(http.MethodPost, "/search", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	// Copy session cookie to request
+	for _, cookie := range w.Result().Cookies() {
+		req.AddCookie(cookie)
+	}
+
+	w = httptest.NewRecorder()
+	handler.HandleSearch(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("Expected status 200, got %d", w.Code)
+	}
+
+	body := w.Body.String()
+	// Authenticated users should see "Back to Dashboard" link
+	if !contains(body, "Dashboard") && !contains(body, "dashboard") {
+		t.Error("Expected dashboard link for authenticated users")
 	}
 }

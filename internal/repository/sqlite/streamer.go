@@ -178,6 +178,59 @@ func (r *StreamerRepository) Delete(ctx context.Context, id string) error {
 	return nil
 }
 
+// GetByIDs retrieves streamers by a list of IDs
+func (r *StreamerRepository) GetByIDs(ctx context.Context, ids []string) ([]*domain.Streamer, error) {
+	if len(ids) == 0 {
+		return []*domain.Streamer{}, nil
+	}
+
+	// Build placeholders for IN clause
+	placeholders := ""
+	args := make([]any, len(ids))
+	for i, id := range ids {
+		if i > 0 {
+			placeholders += ", "
+		}
+		placeholders += "?"
+		args[i] = id
+	}
+
+	query := fmt.Sprintf(
+		"SELECT id, name, created_at, updated_at FROM streamers WHERE id IN (%s) ORDER BY name",
+		placeholders,
+	)
+
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query streamers by IDs: %w", err)
+	}
+	defer rows.Close()
+
+	var streamers []*domain.Streamer
+	for rows.Next() {
+		var s domain.Streamer
+		if err := rows.Scan(&s.ID, &s.Name, &s.CreatedAt, &s.UpdatedAt); err != nil {
+			return nil, fmt.Errorf("failed to scan streamer: %w", err)
+		}
+
+		// Load platform handles
+		handles, platforms, err := r.loadPlatforms(ctx, s.ID)
+		if err != nil {
+			return nil, err
+		}
+
+		s.Handles = handles
+		s.Platforms = platforms
+		streamers = append(streamers, &s)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating streamers: %w", err)
+	}
+
+	return streamers, nil
+}
+
 // GetByPlatform retrieves streamers by platform
 func (r *StreamerRepository) GetByPlatform(ctx context.Context, platform string) ([]*domain.Streamer, error) {
 	rows, err := r.db.QueryContext(ctx, `

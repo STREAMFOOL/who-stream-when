@@ -41,6 +41,7 @@ type UserService interface {
 	GetUser(ctx context.Context, userID string) (*User, error)
 	CreateUser(ctx context.Context, googleID string, email string) (*User, error)
 	GetUserFollows(ctx context.Context, userID string) ([]*Streamer, error)
+	GetStreamersByIDs(ctx context.Context, streamerIDs []string) ([]*Streamer, error)
 	FollowStreamer(ctx context.Context, userID, streamerID string) error
 	UnfollowStreamer(ctx context.Context, userID, streamerID string) error
 }

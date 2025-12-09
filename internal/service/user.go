@@ -16,6 +16,7 @@ type userService struct {
 	userRepo     repository.UserRepository
 	followRepo   repository.FollowRepository
 	activityRepo repository.ActivityRecordRepository
+	streamerRepo repository.StreamerRepository
 }
 
 // NewUserService creates a new UserService
@@ -23,11 +24,13 @@ func NewUserService(
 	userRepo repository.UserRepository,
 	followRepo repository.FollowRepository,
 	activityRepo repository.ActivityRecordRepository,
+	streamerRepo repository.StreamerRepository,
 ) domain.UserService {
 	return &userService{
 		userRepo:     userRepo,
 		followRepo:   followRepo,
 		activityRepo: activityRepo,
+		streamerRepo: streamerRepo,
 	}
 }
 
@@ -134,4 +137,18 @@ func (s *userService) UnfollowStreamer(ctx context.Context, userID, streamerID s
 	}
 
 	return nil
+}
+
+// GetStreamersByIDs retrieves streamers by their IDs (used for guest follows)
+func (s *userService) GetStreamersByIDs(ctx context.Context, streamerIDs []string) ([]*domain.Streamer, error) {
+	if len(streamerIDs) == 0 {
+		return []*domain.Streamer{}, nil
+	}
+
+	streamers, err := s.streamerRepo.GetByIDs(ctx, streamerIDs)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get streamers by IDs: %w", err)
+	}
+
+	return streamers, nil
 }

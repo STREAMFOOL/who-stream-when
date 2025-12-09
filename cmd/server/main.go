@@ -60,7 +60,7 @@ func main() {
 	streamerService := service.NewStreamerService(streamerRepo)
 	heatmapService := service.NewHeatmapService(activityRepo, heatmapRepo)
 	liveStatusService := service.NewLiveStatusService(streamerRepo, liveStatusRepo, platformAdapters)
-	userService := service.NewUserService(userRepo, followRepo, activityRepo)
+	userService := service.NewUserService(userRepo, followRepo, activityRepo, streamerRepo)
 	tvProgrammeService := service.NewTVProgrammeService(heatmapService, userRepo, followRepo, streamerRepo, activityRepo)
 
 	// Initialize Google OAuth for authentication
@@ -82,6 +82,7 @@ func main() {
 		liveStatusService,
 		heatmapService,
 		userService,
+		searchService,
 		oauthConfig,
 		sessionManager,
 		stateStore,
@@ -106,16 +107,16 @@ func main() {
 	mux.HandleFunc("/login", publicHandler.HandleLogin)
 	mux.HandleFunc("/auth/callback", publicHandler.HandleAuthCallback)
 	mux.HandleFunc("/logout", publicHandler.HandleLogout)
+	mux.HandleFunc("/search", publicHandler.HandleSearch)
 
 	// Authenticated routes (require valid session)
 	mux.HandleFunc("/dashboard", authenticatedHandler.RequireAuth(authenticatedHandler.HandleDashboard))
-	mux.HandleFunc("/search", authenticatedHandler.RequireAuth(authenticatedHandler.HandleSearch))
 	mux.HandleFunc("/follow/{id}", authenticatedHandler.RequireAuth(authenticatedHandler.HandleFollow))
 	mux.HandleFunc("/unfollow/{id}", authenticatedHandler.RequireAuth(authenticatedHandler.HandleUnfollow))
 	mux.HandleFunc("/calendar", authenticatedHandler.RequireAuth(authenticatedHandler.HandleCalendar))
 
-	// API routes (JSON responses, also require authentication)
-	mux.HandleFunc("/api/search", authenticatedHandler.RequireAuth(authenticatedHandler.HandleSearchAPI))
+	// API routes (JSON responses, search is public, others require authentication)
+	mux.HandleFunc("/api/search", publicHandler.HandleSearchAPI)
 
 	// Static file serving for CSS, JavaScript, and images
 	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))

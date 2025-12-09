@@ -2,13 +2,16 @@ package handler
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"html/template"
+	"log"
 	"net/http"
 
 	"who-live-when/internal/auth"
 	"who-live-when/internal/domain"
 	"who-live-when/internal/logger"
+	"who-live-when/internal/service"
 )
 
 // PublicHandler handles public routes
@@ -18,6 +21,7 @@ type PublicHandler struct {
 	liveStatusService  domain.LiveStatusService
 	heatmapService     domain.HeatmapService
 	userService        domain.UserService
+	searchService      *service.SearchService
 	oauthConfig        *auth.GoogleOAuthConfig
 	sessionManager     *auth.SessionManager
 	stateStore         *auth.StateStore
@@ -32,6 +36,7 @@ func NewPublicHandler(
 	liveStatusService domain.LiveStatusService,
 	heatmapService domain.HeatmapService,
 	userService domain.UserService,
+	searchService *service.SearchService,
 	oauthConfig *auth.GoogleOAuthConfig,
 	sessionManager *auth.SessionManager,
 	stateStore *auth.StateStore,
@@ -42,6 +47,7 @@ func NewPublicHandler(
 		liveStatusService:  liveStatusService,
 		heatmapService:     heatmapService,
 		userService:        userService,
+		searchService:      searchService,
 		oauthConfig:        oauthConfig,
 		sessionManager:     sessionManager,
 		stateStore:         stateStore,
@@ -444,6 +450,178 @@ func (h *PublicHandler) HandleLogout(w http.ResponseWriter, r *http.Request) {
 
 	// Redirect to home page
 	http.Redirect(w, r, "/", http.StatusSeeOther)
+}
+
+// HandleSearch handles streamer search requests (accessible to all users)
+// POST /search
+func (h *PublicHandler) HandleSearch(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	ctx := r.Context()
+
+	// Parse form data
+	if err := r.ParseForm(); err != nil {
+		log.Printf("Error parsing form: %v", err)
+		http.Error(w, "Invalid form data", http.StatusBadRequest)
+		return
+	}
+
+	query := r.FormValue("query")
+	if query == "" {
+		http.Error(w, "Search query is required", http.StatusBadRequest)
+		return
+	}
+
+	// Perform search across all platforms
+	results, err := h.searchService.SearchStreamers(ctx, query)
+	if err != nil {
+		log.Printf("Error searching streamers: %v", err)
+		http.Error(w, "Search failed", http.StatusInternalServerError)
+		return
+	}
+
+	// Check if user is authenticated
+	userID, _ := h.sessionManager.GetSession(r)
+	isAuthenticated := userID != ""
+
+	// Get user's followed streamers to check which ones are already followed
+	followedHandles := make(map[string]bool)
+	if isAuthenticated {
+		followedStreamers, err := h.userService.GetUserFollows(ctx, userID)
+		if err != nil {
+			log.Printf("Error getting user follows: %v", err)
+		} else {
+			for _, streamer := range followedStreamers {
+				for _, handle := range streamer.Handles {
+					followedHandles[handle] = true
+				}
+			}
+		}
+	}
+
+	data := map[string]any{
+		"Query":           query,
+		"Results":         results,
+		"FollowedHandles": followedHandles,
+		"IsAuthenticated": isAuthenticated,
+	}
+
+	// Try to render template, fallback to simple HTML if template not found
+	if err := h.templates.ExecuteTemplate(w, "search.html", data); err != nil {
+		h.renderSimpleSearch(w, query, results, followedHandles, isAuthenticated)
+	}
+}
+
+// renderSimpleSearch renders a simple HTML search results page
+func (h *PublicHandler) renderSimpleSearch(w http.ResponseWriter, query string, results []*service.SearchResult, followedHandles map[string]bool, isAuthenticated bool) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+
+	backLink := "/"
+	if isAuthenticated {
+		backLink = "/dashboard"
+	}
+
+	fmt.Fprintf(w, `<!DOCTYPE html>
+<html>
+<head>
+	<title>Search Results - Who Live When</title>
+	<style>
+		body { font-family: Arial, sans-serif; margin: 20px; }
+		.result { border: 1px solid #ccc; padding: 10px; margin: 10px 0; }
+		.header { background-color: #e7f3ff; padding: 10px; margin-bottom: 20px; }
+	</style>
+</head>
+<body>
+	<div class="header">
+		<h1>Search Results</h1>
+		<p><a href="%s">← Back</a></p>
+	</div>
+	<h2>Results for "%s"</h2>
+	<form action="/search" method="POST" style="margin-bottom: 20px;">
+		<input type="text" name="query" placeholder="Search for streamers..." value="%s" required>
+		<button type="submit">Search</button>
+	</form>
+`, backLink, query, query)
+
+	if len(results) == 0 {
+		fmt.Fprintf(w, `<p>No streamers found matching your search.</p>`)
+	} else {
+		for _, result := range results {
+			isFollowed := false
+			for _, handle := range result.Handles {
+				if followedHandles[handle] {
+					isFollowed = true
+					break
+				}
+			}
+
+			fmt.Fprintf(w, `
+	<div class="result">
+		<h3>%s</h3>
+		<p>Platforms: %v</p>
+		<p>Handles: %v</p>
+`, result.Name, result.Platforms, result.Handles)
+
+			if isFollowed {
+				fmt.Fprintf(w, `<p><em>Already following</em></p>`)
+			} else if isAuthenticated {
+				fmt.Fprintf(w, `<p><em>To follow this streamer, they need to be added to the system first.</em></p>`)
+			} else {
+				fmt.Fprintf(w, `<p><em><a href="/login">Login</a> to follow streamers.</em></p>`)
+			}
+
+			fmt.Fprintf(w, `
+	</div>
+`)
+		}
+	}
+
+	fmt.Fprintf(w, `
+</body>
+</html>`)
+}
+
+// HandleSearchAPI handles streamer search requests via JSON API (accessible to all users)
+// POST /api/search
+func (h *PublicHandler) HandleSearchAPI(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	ctx := r.Context()
+
+	// Parse JSON request
+	var req struct {
+		Query string `json:"query"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		return
+	}
+
+	if req.Query == "" {
+		http.Error(w, "Search query is required", http.StatusBadRequest)
+		return
+	}
+
+	// Perform search across all platforms
+	results, err := h.searchService.SearchStreamers(ctx, req.Query)
+	if err != nil {
+		log.Printf("Error searching streamers: %v", err)
+		http.Error(w, "Search failed", http.StatusInternalServerError)
+		return
+	}
+
+	// Return JSON response
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]any{
+		"query":   req.Query,
+		"results": results,
+	})
 }
 
 // GetUserFromSession retrieves the user from the session

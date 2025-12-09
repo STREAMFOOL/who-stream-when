@@ -3,7 +3,11 @@
 {{define "title"}}Search Results - Who Live When{{end}}
 
 {{define "content"}}
+{{if .IsAuthenticated}}
 <a href="/dashboard" class="back-link">← Back to Dashboard</a>
+{{else}}
+<a href="/" class="back-link">← Back to Home</a>
+{{end}}
 
 <div class="page-header">
     <h1>Search Results</h1>
@@ -46,9 +50,13 @@
             {{end}}
             {{if $isFollowed}}
             <span class="btn btn-secondary" style="cursor: default;">Already Following</span>
-            {{else}}
+            {{else if $.IsAuthenticated}}
             <p style="color: #6b7280; font-size: 0.875rem;">
                 <em>To follow, this streamer needs to be added to the system first.</em>
+            </p>
+            {{else}}
+            <p style="color: #6b7280; font-size: 0.875rem;">
+                <em><a href="/login">Login</a> to follow streamers.</em>
             </p>
             {{end}}
         </div>

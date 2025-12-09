@@ -11,6 +11,7 @@ import (
 type StreamerRepository interface {
 	Create(ctx context.Context, streamer *domain.Streamer) error
 	GetByID(ctx context.Context, id string) (*domain.Streamer, error)
+	GetByIDs(ctx context.Context, ids []string) ([]*domain.Streamer, error)
 	List(ctx context.Context, limit int) ([]*domain.Streamer, error)
 	Update(ctx context.Context, streamer *domain.Streamer) error
 	Delete(ctx context.Context, id string) error

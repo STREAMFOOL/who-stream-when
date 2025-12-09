@@ -78,42 +78,42 @@
   - Test default to global programme when no custom programme exists
   - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 4.1, 4.2, 4.3, 4.4_
 
-- [-] 5. Remove authentication requirements from search functionality
+- [x] 5. Remove authentication requirements from search functionality
   - Move search handler from authenticated to public handler
   - Update routing to allow unauthenticated search access
   - Update search UI to work for both authenticated and guest users
   - _Requirements: 1.1, 1.2, 1.3, 1.4_
 
-- [-] 5.1 Write property test for multi-platform search coverage
+- [x] 5.1 Write property test for multi-platform search coverage
   - **Property 1: Multi-Platform Search Coverage**
   - **Validates: Requirements 1.2**
 
-- [ ] 5.2 Write property test for search result completeness
+- [x] 5.2 Write property test for search result completeness
   - **Property 2: Search Result Completeness**
   - **Validates: Requirements 1.3**
 
-- [ ] 5.3 Write unit tests for public search handler
+- [x] 5.3 Write unit tests for public search handler
   - Test unauthenticated search access
   - Test search with no results
   - Test search result display
   - _Requirements: 1.1, 1.4_
 
-- [ ] 6. Implement universal follow functionality with dual storage
+- [-] 6. Implement universal follow functionality with dual storage
   - Update UserService to support both database and session-based follows
   - Modify follow/unfollow handlers to work for guest users
   - Implement GetGuestFollows method to retrieve streamers by IDs
   - Update follow UI to work for both user types
   - _Requirements: 2.1, 2.2, 2.3, 2.4_
 
-- [ ] 6.1 Write property test for registered user follow persistence
+- [x] 6.1 Write property test for registered user follow persistence
   - **Property 3: Registered User Follow Persistence**
   - **Validates: Requirements 2.1**
 
-- [ ] 6.2 Write property test for follow list completeness
+- [x] 6.2 Write property test for follow list completeness
   - **Property 5: Follow List Completeness**
   - **Validates: Requirements 2.3**
 
-- [ ] 6.3 Write unit tests for dual-storage follow functionality
+- [x] 6.3 Write unit tests for dual-storage follow functionality
   - Test registered user follows (database)
   - Test guest user follows (session)
   - Test follow/unfollow operations
