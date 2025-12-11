@@ -1,0 +1,239 @@
+{{template "base" .}}
+
+{{define "title"}}Programme Management - Who Live When{{end}}
+
+{{define "content"}}
+<div class="page-header">
+    <h1>Programme Management</h1>
+    {{if .IsAuthenticated}}
+    <p><a href="/dashboard">← Back to Dashboard</a></p>
+    {{else}}
+    <p><a href="/">← Back to Home</a></p>
+    {{end}}
+</div>
+
+{{if .IsGuest}}
+<div class="notice-box guest-notice">
+    <strong>Guest User Notice:</strong> You are browsing as a guest. Your programme is stored in your browser session
+    and will be lost when you close your browser. <a href="/login" class="btn-link">Login with Google</a> to save
+    your programme permanently.
+</div>
+{{end}}
+
+{{if .HasCustomProgramme}}
+<div class="programme-section">
+    <h2>Your Custom Programme</h2>
+    <p class="programme-description">
+        You are currently using a custom programme. The calendar will show only these streamers.
+    </p>
+
+    {{if .ProgrammeStreamers}}
+    <div class="streamer-list">
+        {{range .ProgrammeStreamers}}
+        <div class="streamer-card programme-streamer">
+            <div class="streamer-info">
+                <h3><a href="/streamer/{{.ID}}">{{.Name}}</a></h3>
+                <div class="platform-tags">
+                    {{range .Platforms}}
+                    <span class="platform-tag">{{.}}</span>
+                    {{end}}
+                </div>
+            </div>
+            <form action="/programme/remove/{{.ID}}" method="POST" class="inline-form">
+                <button type="submit" class="btn btn-danger">Remove</button>
+            </form>
+        </div>
+        {{end}}
+    </div>
+    {{else}}
+    <p class="empty-state">No streamers in your custom programme yet.</p>
+    {{end}}
+
+    <form action="/programme/delete" method="POST" class="clear-programme-form">
+        <button type="submit" class="btn btn-danger btn-large">
+            Clear Programme (Revert to Global)
+        </button>
+    </form>
+</div>
+{{else}}
+<div class="programme-section">
+    <h2>Global Programme</h2>
+    <p class="programme-description">
+        You are currently using the global programme, which shows the most popular streamers.
+        Create a custom programme below to personalize your calendar.
+    </p>
+</div>
+{{end}}
+
+<div class="programme-section">
+    <h2>{{if .HasCustomProgramme}}Add More Streamers{{else}}Create Custom Programme{{end}}</h2>
+    <p class="programme-description">
+        Select streamers to {{if .HasCustomProgramme}}add to{{else}}include in{{end}} your custom programme.
+    </p>
+
+    {{if .AllStreamers}}
+    <div class="streamer-list">
+        {{range .AllStreamers}}
+        {{$inProgramme := false}}
+        {{if $.ProgrammeStreamers}}
+        {{range $.ProgrammeStreamers}}
+        {{if eq .ID $.ID}}
+        {{$inProgramme = true}}
+        {{end}}
+        {{end}}
+        {{end}}
+
+        {{if not $inProgramme}}
+        <div class="streamer-card available-streamer">
+            <div class="streamer-info">
+                <h3><a href="/streamer/{{.ID}}">{{.Name}}</a></h3>
+                <div class="platform-tags">
+                    {{range .Platforms}}
+                    <span class="platform-tag">{{.}}</span>
+                    {{end}}
+                </div>
+            </div>
+            <form action="/programme/add/{{.ID}}" method="POST" class="inline-form">
+                <button type="submit" class="btn btn-primary">Add to Programme</button>
+            </form>
+        </div>
+        {{end}}
+        {{end}}
+    </div>
+    {{else}}
+    <p class="empty-state">No streamers available. Use the search to find and add streamers to the system.</p>
+    {{end}}
+</div>
+
+<style>
+    .notice-box {
+        padding: 15px;
+        margin: 20px 0;
+        border-radius: 5px;
+        border: 1px solid;
+    }
+
+    .guest-notice {
+        background-color: #fff3cd;
+        border-color: #ffc107;
+        color: #856404;
+    }
+
+    .programme-section {
+        margin: 30px 0;
+    }
+
+    .programme-description {
+        color: #666;
+        margin-bottom: 20px;
+    }
+
+    .streamer-list {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .streamer-card {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 15px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        background-color: #fff;
+    }
+
+    .programme-streamer {
+        background-color: #e7f3ff;
+    }
+
+    .streamer-info {
+        flex: 1;
+    }
+
+    .streamer-info h3 {
+        margin: 0 0 5px 0;
+    }
+
+    .streamer-info h3 a {
+        color: #333;
+        text-decoration: none;
+    }
+
+    .streamer-info h3 a:hover {
+        color: #007bff;
+    }
+
+    .platform-tags {
+        display: flex;
+        gap: 5px;
+        flex-wrap: wrap;
+    }
+
+    .platform-tag {
+        display: inline-block;
+        padding: 2px 8px;
+        background-color: #6c757d;
+        color: white;
+        border-radius: 3px;
+        font-size: 0.85em;
+    }
+
+    .inline-form {
+        display: inline;
+    }
+
+    .btn {
+        padding: 8px 16px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+        transition: background-color 0.2s;
+    }
+
+    .btn-primary {
+        background-color: #007bff;
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background-color: #0056b3;
+    }
+
+    .btn-danger {
+        background-color: #dc3545;
+        color: white;
+    }
+
+    .btn-danger:hover {
+        background-color: #c82333;
+    }
+
+    .btn-large {
+        padding: 12px 24px;
+        font-size: 16px;
+    }
+
+    .btn-link {
+        color: #007bff;
+        text-decoration: underline;
+    }
+
+    .btn-link:hover {
+        color: #0056b3;
+    }
+
+    .clear-programme-form {
+        margin-top: 20px;
+    }
+
+    .empty-state {
+        color: #999;
+        font-style: italic;
+        padding: 20px;
+        text-align: center;
+    }
+</style>
+{{end}}

@@ -88,6 +88,9 @@ func main() {
 		platformAdapters["twitch"],
 	)
 
+	// Initialize programme service
+	programmeService := service.NewProgrammeService(programmeRepo, streamerRepo, followRepo, heatmapService)
+
 	// Initialize handlers
 	publicHandler := handler.NewPublicHandler(
 		tvProgrammeService,
@@ -111,6 +114,12 @@ func main() {
 		sessionManager,
 	)
 
+	programmeHandler := handler.NewProgrammeHandler(
+		programmeService,
+		streamerService,
+		sessionManager,
+	)
+
 	// Set up HTTP routing
 	mux := http.NewServeMux()
 
@@ -127,6 +136,14 @@ func main() {
 	mux.HandleFunc("/follow/{id}", authenticatedHandler.RequireAuth(authenticatedHandler.HandleFollow))
 	mux.HandleFunc("/unfollow/{id}", authenticatedHandler.RequireAuth(authenticatedHandler.HandleUnfollow))
 	mux.HandleFunc("/calendar", authenticatedHandler.RequireAuth(authenticatedHandler.HandleCalendar))
+
+	// Programme management routes (accessible to all users - authenticated and guest)
+	mux.HandleFunc("/programme", programmeHandler.HandleProgrammeManagement)
+	mux.HandleFunc("/programme/create", programmeHandler.HandleCreateProgramme)
+	mux.HandleFunc("/programme/update", programmeHandler.HandleUpdateProgramme)
+	mux.HandleFunc("/programme/delete", programmeHandler.HandleDeleteProgramme)
+	mux.HandleFunc("/programme/add/{id}", programmeHandler.HandleAddStreamer)
+	mux.HandleFunc("/programme/remove/{id}", programmeHandler.HandleRemoveStreamer)
 
 	// API routes (JSON responses, search is public, others require authentication)
 	mux.HandleFunc("/api/search", publicHandler.HandleSearchAPI)

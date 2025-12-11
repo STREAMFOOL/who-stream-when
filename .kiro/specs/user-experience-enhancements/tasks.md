@@ -188,7 +188,7 @@
   - Test session cleanup after migration
   - _Requirements: 7.5_
 
-- [ ] 9. Create programme management interface
+- [x] 9. Create programme management interface
   - Create programme management page template
   - Add handlers for programme CRUD operations
   - Implement UI for adding/removing streamers from programme
@@ -196,7 +196,7 @@
   - Display session-based notice for guest users
   - _Requirements: 9.1, 9.2, 9.3, 9.4, 9.5_
 
-- [ ] 9.1 Write unit tests for programme management handlers
+- [x] 9.1 Write unit tests for programme management handlers
   - Test programme creation and updates
   - Test programme deletion
   - Test UI state for custom vs global programme
