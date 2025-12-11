@@ -203,14 +203,14 @@
   - Test guest user notice display
   - _Requirements: 9.1, 9.2, 9.3, 9.4, 9.5_
 
-- [ ] 10. Update home page to use custom or global programme
+- [x] 10. Update home page to use custom or global programme
   - Modify home page handler to check for custom programme
   - Display custom programme if exists, otherwise global programme
   - Add UI indicator showing which programme type is displayed
   - Update calendar view to reflect programme source
   - _Requirements: 3.5, 4.1, 4.3, 4.4_
 
-- [ ] 10.1 Write unit tests for home page programme selection
+- [x] 10.1 Write unit tests for home page programme selection
   - Test display of custom programme when exists
   - Test fallback to global programme
   - Test programme type indicator

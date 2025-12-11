@@ -99,6 +99,7 @@ func main() {
 		heatmapService,
 		userService,
 		searchService,
+		programmeService,
 		oauthConfig,
 		sessionManager,
 		stateStore,

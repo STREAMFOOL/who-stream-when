@@ -32,8 +32,9 @@ func (m *emptySearchMockAdapter) GetChannelInfo(ctx context.Context, handle stri
 
 // setupTestHandler creates a test handler with in-memory database
 func setupTestHandler(t *testing.T) (*PublicHandler, *sqlite.DB, func()) {
-	// Create in-memory database
-	db, err := sqlite.NewDB(":memory:")
+	// Create in-memory database with shared cache to work with connection pooling
+	// Using file::memory:?cache=shared allows multiple connections to share the same in-memory database
+	db, err := sqlite.NewDB("file::memory:?cache=shared")
 	if err != nil {
 		t.Fatalf("Failed to create test database: %v", err)
 	}
@@ -65,6 +66,7 @@ func setupTestHandler(t *testing.T) (*PublicHandler, *sqlite.DB, func()) {
 	programmeRepo := sqlite.NewCustomProgrammeRepository(db)
 	userService := service.NewUserService(userRepo, followRepo, activityRepo, streamerRepo, programmeRepo)
 	tvProgrammeService := service.NewTVProgrammeService(heatmapService, userRepo, followRepo, streamerRepo, activityRepo)
+	programmeService := service.NewProgrammeService(programmeRepo, streamerRepo, followRepo, heatmapService)
 
 	// Initialize mock platform adapters for search
 	mockYouTube := newMockPlatformAdapter("youtube")
@@ -85,6 +87,7 @@ func setupTestHandler(t *testing.T) (*PublicHandler, *sqlite.DB, func()) {
 		heatmapService,
 		userService,
 		searchService,
+		programmeService,
 		oauthConfig,
 		sessionManager,
 		stateStore,
@@ -653,6 +656,7 @@ func TestHandleSearch_NoResults(t *testing.T) {
 	// Create mock adapters that return empty results
 	emptyMock := &emptySearchMockAdapter{}
 	searchService := service.NewSearchService(emptyMock, emptyMock, emptyMock)
+	programmeService := service.NewProgrammeService(programmeRepo, streamerRepo, followRepo, heatmapService)
 
 	oauthConfig := auth.NewGoogleOAuthConfig("test-client-id", "test-client-secret", "http://localhost:8080/auth/google/callback")
 	sessionManager := auth.NewSessionManager("test-session", false, 3600)
@@ -665,6 +669,7 @@ func TestHandleSearch_NoResults(t *testing.T) {
 		heatmapService,
 		userService,
 		searchService,
+		programmeService,
 		oauthConfig,
 		sessionManager,
 		stateStore,
@@ -761,4 +766,241 @@ func TestHandleSearch_AuthenticatedUser(t *testing.T) {
 	if !contains(body, "Dashboard") && !contains(body, "dashboard") {
 		t.Error("Expected dashboard link for authenticated users")
 	}
+}
+
+// TestHandleHome_CustomProgramme tests home page displays custom programme when it exists
+func TestHandleHome_CustomProgramme(t *testing.T) {
+	handler, _, cleanup := setupTestHandler(t)
+	defer cleanup()
+
+	ctx := context.Background()
+
+	// Create test user
+	user, err := handler.userService.CreateUser(ctx, "test-google-id", "test@example.com")
+	if err != nil {
+		t.Fatalf("Failed to create test user: %v", err)
+	}
+
+	// Create test streamers
+	streamer1 := &domain.Streamer{
+		ID:        "streamer-1",
+		Name:      "Custom Streamer 1",
+		Handles:   map[string]string{"youtube": "custom1"},
+		Platforms: []string{"youtube"},
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+	streamer2 := &domain.Streamer{
+		ID:        "streamer-2",
+		Name:      "Custom Streamer 2",
+		Handles:   map[string]string{"kick": "custom2"},
+		Platforms: []string{"kick"},
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+
+	if err := handler.streamerService.AddStreamer(ctx, streamer1); err != nil {
+		t.Fatalf("Failed to add streamer1: %v", err)
+	}
+	if err := handler.streamerService.AddStreamer(ctx, streamer2); err != nil {
+		t.Fatalf("Failed to add streamer2: %v", err)
+	}
+
+	// Create custom programme for user
+	_, err = handler.programmeService.CreateCustomProgramme(ctx, user.ID, []string{streamer1.ID, streamer2.ID})
+	if err != nil {
+		t.Fatalf("Failed to create custom programme: %v", err)
+	}
+
+	// Set up authenticated request
+	w := httptest.NewRecorder()
+	handler.sessionManager.SetSession(w, user.ID)
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	for _, cookie := range w.Result().Cookies() {
+		req.AddCookie(cookie)
+	}
+
+	w = httptest.NewRecorder()
+	handler.HandleHome(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("Expected status 200, got %d", w.Code)
+	}
+
+	body := w.Body.String()
+
+	// Should display custom programme streamers
+	if !contains(body, streamer1.Name) {
+		t.Errorf("Expected custom programme to show streamer '%s'", streamer1.Name)
+	}
+	if !contains(body, streamer2.Name) {
+		t.Errorf("Expected custom programme to show streamer '%s'", streamer2.Name)
+	}
+}
+
+// TestHandleHome_GlobalProgrammeFallback tests home page falls back to global programme
+func TestHandleHome_GlobalProgrammeFallback(t *testing.T) {
+	handler, _, cleanup := setupTestHandler(t)
+	defer cleanup()
+
+	ctx := context.Background()
+
+	// Create test user without custom programme
+	user, err := handler.userService.CreateUser(ctx, "test-google-id-2", "test2@example.com")
+	if err != nil {
+		t.Fatalf("Failed to create test user: %v", err)
+	}
+
+	// Create test streamers and have them followed by other users to rank them
+	streamer1 := &domain.Streamer{
+		ID:        "global-streamer-1",
+		Name:      "Popular Streamer 1",
+		Handles:   map[string]string{"youtube": "popular1"},
+		Platforms: []string{"youtube"},
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+
+	if err := handler.streamerService.AddStreamer(ctx, streamer1); err != nil {
+		t.Fatalf("Failed to add streamer: %v", err)
+	}
+
+	// Add some activity records for heatmap generation
+	for i := 0; i < 10; i++ {
+		timestamp := time.Now().AddDate(0, 0, -i)
+		if err := handler.heatmapService.RecordActivity(ctx, streamer1.ID, timestamp); err != nil {
+			t.Fatalf("Failed to record activity: %v", err)
+		}
+	}
+
+	// Create another user to follow the streamer (for ranking)
+	otherUser, err := handler.userService.CreateUser(ctx, "other-google-id", "other@example.com")
+	if err != nil {
+		t.Fatalf("Failed to create other user: %v", err)
+	}
+	if err := handler.userService.FollowStreamer(ctx, otherUser.ID, streamer1.ID); err != nil {
+		t.Fatalf("Failed to follow streamer: %v", err)
+	}
+
+	// Set up authenticated request
+	w := httptest.NewRecorder()
+	handler.sessionManager.SetSession(w, user.ID)
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	for _, cookie := range w.Result().Cookies() {
+		req.AddCookie(cookie)
+	}
+
+	w = httptest.NewRecorder()
+	handler.HandleHome(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("Expected status 200, got %d", w.Code)
+	}
+
+	body := w.Body.String()
+
+	// Should display global programme (most followed streamers)
+	if !contains(body, streamer1.Name) {
+		t.Errorf("Expected global programme to show popular streamer '%s'", streamer1.Name)
+	}
+}
+
+// TestHandleHome_ProgrammeTypeIndicator tests that programme type is indicated
+func TestHandleHome_ProgrammeTypeIndicator(t *testing.T) {
+	handler, _, cleanup := setupTestHandler(t)
+	defer cleanup()
+
+	ctx := context.Background()
+
+	t.Run("shows custom programme indicator", func(t *testing.T) {
+		// Create test user with custom programme
+		user, err := handler.userService.CreateUser(ctx, "test-google-id-3", "test3@example.com")
+		if err != nil {
+			t.Fatalf("Failed to create test user: %v", err)
+		}
+
+		// Create test streamer
+		streamer := &domain.Streamer{
+			ID:        "indicator-streamer-1",
+			Name:      "Indicator Streamer",
+			Handles:   map[string]string{"youtube": "indicator1"},
+			Platforms: []string{"youtube"},
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+		}
+
+		if err := handler.streamerService.AddStreamer(ctx, streamer); err != nil {
+			t.Fatalf("Failed to add streamer: %v", err)
+		}
+
+		// Add some activity records for heatmap generation
+		for i := 0; i < 10; i++ {
+			timestamp := time.Now().AddDate(0, 0, -i)
+			if err := handler.heatmapService.RecordActivity(ctx, streamer.ID, timestamp); err != nil {
+				t.Fatalf("Failed to record activity: %v", err)
+			}
+		}
+
+		// Create custom programme
+		_, err = handler.programmeService.CreateCustomProgramme(ctx, user.ID, []string{streamer.ID})
+		if err != nil {
+			t.Fatalf("Failed to create custom programme: %v", err)
+		}
+
+		// Set up authenticated request
+		w := httptest.NewRecorder()
+		handler.sessionManager.SetSession(w, user.ID)
+
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		for _, cookie := range w.Result().Cookies() {
+			req.AddCookie(cookie)
+		}
+
+		w = httptest.NewRecorder()
+		handler.HandleHome(w, req)
+
+		if w.Code != http.StatusOK {
+			t.Errorf("Expected status 200, got %d", w.Code)
+		}
+
+		body := w.Body.String()
+
+		// Should indicate custom programme
+		if !contains(body, "Custom") && !contains(body, "custom") && !contains(body, "Your") && !contains(body, "your") {
+			t.Error("Expected indicator showing custom programme")
+		}
+	})
+
+	t.Run("shows global programme indicator", func(t *testing.T) {
+		// Create test user without custom programme
+		user, err := handler.userService.CreateUser(ctx, "test-google-id-4", "test4@example.com")
+		if err != nil {
+			t.Fatalf("Failed to create test user: %v", err)
+		}
+
+		// Set up authenticated request
+		w := httptest.NewRecorder()
+		handler.sessionManager.SetSession(w, user.ID)
+
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		for _, cookie := range w.Result().Cookies() {
+			req.AddCookie(cookie)
+		}
+
+		w = httptest.NewRecorder()
+		handler.HandleHome(w, req)
+
+		if w.Code != http.StatusOK {
+			t.Errorf("Expected status 200, got %d", w.Code)
+		}
+
+		body := w.Body.String()
+
+		// Should indicate global programme
+		if !contains(body, "Most Viewed") && !contains(body, "Popular") && !contains(body, "Global") {
+			t.Error("Expected indicator showing global programme")
+		}
+	})
 }

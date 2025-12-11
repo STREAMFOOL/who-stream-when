@@ -7,6 +7,7 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"time"
 
 	"who-live-when/internal/auth"
 	"who-live-when/internal/domain"
@@ -22,6 +23,7 @@ type PublicHandler struct {
 	heatmapService     domain.HeatmapService
 	userService        domain.UserService
 	searchService      *service.SearchService
+	programmeService   *service.ProgrammeService
 	oauthConfig        *auth.GoogleOAuthConfig
 	sessionManager     *auth.SessionManager
 	stateStore         *auth.StateStore
@@ -37,6 +39,7 @@ func NewPublicHandler(
 	heatmapService domain.HeatmapService,
 	userService domain.UserService,
 	searchService *service.SearchService,
+	programmeService *service.ProgrammeService,
 	oauthConfig *auth.GoogleOAuthConfig,
 	sessionManager *auth.SessionManager,
 	stateStore *auth.StateStore,
@@ -48,6 +51,7 @@ func NewPublicHandler(
 		heatmapService:     heatmapService,
 		userService:        userService,
 		searchService:      searchService,
+		programmeService:   programmeService,
 		oauthConfig:        oauthConfig,
 		sessionManager:     sessionManager,
 		stateStore:         stateStore,
@@ -56,24 +60,61 @@ func NewPublicHandler(
 	}
 }
 
-// HandleHome displays the home page with default week view showing most viewed streamers
+// HandleHome displays the home page with custom or global programme
 // GET /
 func (h *PublicHandler) HandleHome(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	// Get default week view with most viewed streamers
-	weekView, err := h.tvProgrammeService.GetDefaultWeekView(ctx)
-	if err != nil {
-		h.logger.Error("Failed to get default week view", map[string]interface{}{
-			"error": err.Error(),
-		})
-		h.renderError(w, "Unable to load home page. Please try again later.", http.StatusInternalServerError)
-		return
+	// Check if user is authenticated
+	userID, _ := h.sessionManager.GetSession(r)
+	isAuthenticated := userID != ""
+
+	// Try to get custom programme first, fall back to global programme
+	var calendarView *service.ProgrammeCalendarView
+	var err error
+	var programmeType string
+
+	if isAuthenticated {
+		// Try to get custom programme for authenticated user
+		customProgramme, err := h.programmeService.GetCustomProgramme(ctx, userID)
+		if err == nil && customProgramme != nil && len(customProgramme.StreamerIDs) > 0 {
+			// User has a custom programme
+			calendarView, err = h.programmeService.GenerateCalendarFromProgramme(ctx, customProgramme, time.Now())
+			if err == nil {
+				programmeType = "custom"
+			}
+		}
+	} else {
+		// Check for guest programme in session
+		guestProgramme, err := h.sessionManager.GetGuestProgramme(r)
+		if err == nil && guestProgramme != nil && len(guestProgramme.StreamerIDs) > 0 {
+			// Guest has a custom programme
+			customProgramme := &domain.CustomProgramme{
+				StreamerIDs: guestProgramme.StreamerIDs,
+			}
+			calendarView, err = h.programmeService.GenerateCalendarFromProgramme(ctx, customProgramme, time.Now())
+			if err == nil {
+				programmeType = "custom"
+			}
+		}
 	}
 
-	// Get live status for all streamers in the week view
+	// Fall back to global programme if no custom programme or error
+	if calendarView == nil {
+		calendarView, err = h.programmeService.GenerateGlobalProgramme(ctx, time.Now(), 10)
+		if err != nil {
+			h.logger.Error("Failed to generate global programme", map[string]interface{}{
+				"error": err.Error(),
+			})
+			h.renderError(w, "Unable to load home page. Please try again later.", http.StatusInternalServerError)
+			return
+		}
+		programmeType = "global"
+	}
+
+	// Get live status for all streamers in the calendar view
 	liveStatuses := make(map[string]*domain.LiveStatus)
-	for _, streamer := range weekView.Streamers {
+	for _, streamer := range calendarView.Streamers {
 		status, err := h.liveStatusService.GetLiveStatus(ctx, streamer.ID)
 		if err != nil {
 			h.logger.Warn("Failed to get live status for streamer", map[string]interface{}{
@@ -85,26 +126,45 @@ func (h *PublicHandler) HandleHome(w http.ResponseWriter, r *http.Request) {
 		liveStatuses[streamer.ID] = status
 	}
 
-	// Check if user is authenticated
-	userID, _ := h.sessionManager.GetSession(r)
-	isAuthenticated := userID != ""
+	// Build view count map for compatibility with template
+	viewCount := make(map[string]int)
+	for _, streamer := range calendarView.Streamers {
+		// For now, we'll use 0 as placeholder - could be enhanced to show follower count
+		viewCount[streamer.ID] = 0
+	}
+
+	// Create WeekView for template compatibility
+	weekView := &domain.WeekView{
+		Week:      calendarView.Week,
+		Streamers: calendarView.Streamers,
+		Entries:   calendarView.Entries,
+		ViewCount: viewCount,
+	}
 
 	data := map[string]interface{}{
 		"WeekView":        weekView,
 		"LiveStatuses":    liveStatuses,
 		"IsAuthenticated": isAuthenticated,
+		"ProgrammeType":   programmeType,
+		"IsCustom":        programmeType == "custom",
 	}
 
 	// Try to render template, fallback to simple HTML if template not found
 	if err := h.templates.ExecuteTemplate(w, "home.html", data); err != nil {
 		// Fallback to simple HTML response
-		h.renderSimpleHome(w, weekView, liveStatuses, isAuthenticated)
+		h.renderSimpleHome(w, weekView, liveStatuses, isAuthenticated, programmeType == "custom")
 	}
 }
 
 // renderSimpleHome renders a simple HTML home page when templates are not available
-func (h *PublicHandler) renderSimpleHome(w http.ResponseWriter, weekView *domain.WeekView, liveStatuses map[string]*domain.LiveStatus, isAuthenticated bool) {
+func (h *PublicHandler) renderSimpleHome(w http.ResponseWriter, weekView *domain.WeekView, liveStatuses map[string]*domain.LiveStatus, isAuthenticated bool, isCustom bool) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+
+	programmeTitle := "Most Viewed Streamers"
+	if isCustom {
+		programmeTitle = "Your Custom Programme"
+	}
+
 	fmt.Fprintf(w, `<!DOCTYPE html>
 <html>
 <head>
@@ -122,13 +182,13 @@ func (h *PublicHandler) renderSimpleHome(w http.ResponseWriter, weekView *domain
 	<div class="auth-status">
 		%s
 	</div>
-	<h2>Most Viewed Streamers</h2>
+	<h2>%s</h2>
 `, func() string {
 		if isAuthenticated {
 			return `<p>You are logged in. <a href="/dashboard">Go to Dashboard</a> | <a href="/logout">Logout</a></p>`
 		}
 		return `<p>You are browsing as a guest. <a href="/login">Login with Google</a> to follow streamers.</p>`
-	}())
+	}(), programmeTitle)
 
 	for _, streamer := range weekView.Streamers {
 		status := liveStatuses[streamer.ID]

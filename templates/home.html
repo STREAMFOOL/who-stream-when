@@ -4,8 +4,13 @@
 
 {{define "content"}}
 <div class="page-header">
+    {{if .IsCustom}}
+    <h1>Your Custom Programme</h1>
+    <p>Your personalized streaming schedule</p>
+    {{else}}
     <h1>Most Viewed Streamers</h1>
     <p>Discover who's live right now across YouTube, Twitch, and Kick</p>
+    {{end}}
 </div>
 
 {{if .WeekView.Streamers}}
