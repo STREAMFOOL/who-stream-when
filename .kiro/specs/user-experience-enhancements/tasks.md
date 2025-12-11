@@ -18,7 +18,7 @@
   - Test feature flag bit operations (enable, disable, check)
   - _Requirements: 5.1, 5.2, 5.3, 5.4, 10.1, 10.2, 10.5, 10.6_
 
-- [ ] 1.2 Implement feature flag system
+- [x] 1.2 Implement feature flag system
   - Define FeatureFlags type using bit flags with iota
   - Implement IsEnabled, Enable, Disable methods
   - Implement GetEnabledPlatforms method
@@ -26,7 +26,7 @@
   - Parse feature flags from environment variables (default: Kick enabled, others disabled)
   - _Requirements: 10.1, 10.2, 10.5, 10.6_
 
-- [ ] 1.3 Write unit tests for feature flag system
+- [x] 1.3 Write unit tests for feature flag system
   - Test bit flag operations (enable, disable, check)
   - Test GetEnabledPlatforms returns correct list
   - Test default configuration (Kick enabled, YouTube/Twitch disabled)
@@ -134,7 +134,7 @@
   - **Property 3: Registered User Follow Persistence**
   - **Validates: Requirements 2.1**
 
-- [ ] 6.1a Write property test for disabled platform rejection
+- [x] 6.1a Write property test for disabled platform rejection
   - **Property 16: Disabled Platform Rejection**
   - **Validates: Requirements 10.4**
 

@@ -5,7 +5,47 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"strings"
 )
+
+// FeatureFlags represents enabled platform features using bit flags
+type FeatureFlags uint8
+
+const (
+	FeatureKick    FeatureFlags = 1 << iota // 0b001
+	FeatureYouTube                          // 0b010
+	FeatureTwitch                           // 0b100
+)
+
+// IsEnabled checks if a specific platform feature is enabled
+func (f FeatureFlags) IsEnabled(flag FeatureFlags) bool {
+	return f&flag != 0
+}
+
+// Enable adds a feature flag
+func (f *FeatureFlags) Enable(flag FeatureFlags) {
+	*f |= flag
+}
+
+// Disable removes a feature flag
+func (f *FeatureFlags) Disable(flag FeatureFlags) {
+	*f &^= flag
+}
+
+// GetEnabledPlatforms returns a list of enabled platform names
+func (f FeatureFlags) GetEnabledPlatforms() []string {
+	platforms := []string{}
+	if f.IsEnabled(FeatureKick) {
+		platforms = append(platforms, "kick")
+	}
+	if f.IsEnabled(FeatureYouTube) {
+		platforms = append(platforms, "youtube")
+	}
+	if f.IsEnabled(FeatureTwitch) {
+		platforms = append(platforms, "twitch")
+	}
+	return platforms
+}
 
 // Config holds all application configuration loaded from environment variables
 type Config struct {
@@ -28,6 +68,9 @@ type Config struct {
 	ServerPort      string
 	SessionSecret   string
 	SessionDuration int
+
+	// Feature flags
+	FeatureFlags FeatureFlags
 }
 
 // Load reads configuration from environment variables and returns a Config instance
@@ -61,6 +104,9 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("invalid SESSION_DURATION format: %w", err)
 	}
 	cfg.SessionDuration = sessionDuration
+
+	// Parse feature flags with default (Kick enabled, others disabled)
+	cfg.FeatureFlags = parseFeatureFlags(getEnvOrDefault("FEATURE_FLAGS", "kick"))
 
 	// Validate required configuration
 	if err := cfg.Validate(); err != nil {
@@ -110,6 +156,13 @@ func (c *Config) LogConfiguration() {
 	log.Printf("Server Port: %s", c.ServerPort)
 	log.Printf("Session Duration: %d seconds", c.SessionDuration)
 
+	// Log feature flag status
+	enabledPlatforms := c.FeatureFlags.GetEnabledPlatforms()
+	log.Printf("Feature Flags - Enabled Platforms: %v", enabledPlatforms)
+	log.Printf("  - Kick: %v", c.FeatureFlags.IsEnabled(FeatureKick))
+	log.Printf("  - YouTube: %v", c.FeatureFlags.IsEnabled(FeatureYouTube))
+	log.Printf("  - Twitch: %v", c.FeatureFlags.IsEnabled(FeatureTwitch))
+
 	// Log warnings for missing optional API keys
 	if c.YouTubeAPIKey == "" {
 		log.Println("WARNING: YOUTUBE_API_KEY not set - YouTube search will have limited functionality")
@@ -141,4 +194,30 @@ func maskSecret(secret string) string {
 		return "****"
 	}
 	return secret[:4] + "****"
+}
+
+// parseFeatureFlags parses a comma-separated list of platform names into FeatureFlags
+// Default: "kick" (only Kick enabled)
+// Example: "kick,youtube" or "kick,youtube,twitch"
+func parseFeatureFlags(flagsStr string) FeatureFlags {
+	var flags FeatureFlags
+
+	if flagsStr == "" {
+		return flags
+	}
+
+	platforms := strings.Split(strings.ToLower(flagsStr), ",")
+	for _, platform := range platforms {
+		platform = strings.TrimSpace(platform)
+		switch platform {
+		case "kick":
+			flags.Enable(FeatureKick)
+		case "youtube":
+			flags.Enable(FeatureYouTube)
+		case "twitch":
+			flags.Enable(FeatureTwitch)
+		}
+	}
+
+	return flags
 }

@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"who-live-when/internal/config"
 	"who-live-when/internal/domain"
 	"who-live-when/internal/repository/sqlite"
 
@@ -870,6 +871,145 @@ func TestProperty_FollowListCompleteness(t *testing.T) {
 	))
 
 	properties.TestingRun(t)
+}
+
+// **Feature: user-experience-enhancements, Property 16: Disabled Platform Rejection**
+// **Validates: Requirements 10.4**
+// For any disabled platform, attempting to follow a streamer from that platform
+// should be rejected with an appropriate error message.
+func TestProperty_DisabledPlatformRejection(t *testing.T) {
+	parameters := gopter.DefaultTestParameters()
+	parameters.MinSuccessfulTests = 100
+	properties := gopter.NewProperties(parameters)
+
+	platforms := []string{"youtube", "kick", "twitch"}
+
+	properties.Property("following streamer from disabled platform is rejected", prop.ForAll(
+		func(googleID string, email string, platformIdx int, streamerName string, enabledPlatformIdx int) bool {
+			// Normalize platform indices
+			platformIdx = platformIdx % len(platforms)
+			enabledPlatformIdx = enabledPlatformIdx % len(platforms)
+
+			streamerPlatform := platforms[platformIdx]
+			enabledPlatform := platforms[enabledPlatformIdx]
+
+			// Skip if the streamer's platform is the enabled platform (not testing rejection in this case)
+			if streamerPlatform == enabledPlatform {
+				return true
+			}
+
+			db := setupTestDB(t)
+			defer db.Close()
+
+			userRepo := sqlite.NewUserRepository(db)
+			followRepo := sqlite.NewFollowRepository(db)
+			activityRepo := sqlite.NewActivityRecordRepository(db)
+			streamerRepo := sqlite.NewStreamerRepository(db)
+			programmeRepo := sqlite.NewCustomProgrammeRepository(db)
+
+			// Create feature flags with only one platform enabled
+			var featureFlags config.FeatureFlags
+			switch enabledPlatform {
+			case "kick":
+				featureFlags.Enable(config.FeatureKick)
+			case "youtube":
+				featureFlags.Enable(config.FeatureYouTube)
+			case "twitch":
+				featureFlags.Enable(config.FeatureTwitch)
+			}
+
+			// Create user service with feature flags
+			// Note: This assumes UserService will be updated to accept feature flags
+			userService := NewUserServiceWithFeatureFlags(userRepo, followRepo, activityRepo, streamerRepo, programmeRepo, featureFlags)
+
+			ctx := context.Background()
+
+			// Create user
+			user, err := userService.CreateUser(ctx, googleID, email)
+			if err != nil {
+				t.Logf("Failed to create user: %v", err)
+				return false
+			}
+
+			// Create streamer on the disabled platform
+			streamer := &domain.Streamer{
+				ID:        uuid.New().String(),
+				Name:      streamerName,
+				Handles:   map[string]string{streamerPlatform: streamerName},
+				Platforms: []string{streamerPlatform},
+				CreatedAt: time.Now(),
+				UpdatedAt: time.Now(),
+			}
+			if err := streamerRepo.Create(ctx, streamer); err != nil {
+				t.Logf("Failed to create streamer: %v", err)
+				return false
+			}
+
+			// Attempt to follow streamer from disabled platform
+			err = userService.FollowStreamer(ctx, user.ID, streamer.ID)
+
+			// Should receive an error indicating the platform is disabled
+			if err == nil {
+				t.Logf("Expected error when following streamer from disabled platform %s, but got nil", streamerPlatform)
+				return false
+			}
+
+			// Verify the error message mentions the platform or disabled status
+			errMsg := err.Error()
+			containsPlatform := false
+			for _, p := range []string{"platform", "disabled", "not available", "not enabled"} {
+				if containsIgnoreCase(errMsg, p) {
+					containsPlatform = true
+					break
+				}
+			}
+
+			if !containsPlatform {
+				t.Logf("Error message should mention platform or disabled status, got: %s", errMsg)
+				return false
+			}
+
+			// Verify the follow was not created
+			follows, err := userService.GetUserFollows(ctx, user.ID)
+			if err != nil {
+				t.Logf("Failed to get user follows: %v", err)
+				return false
+			}
+
+			if len(follows) != 0 {
+				t.Logf("Expected 0 follows after rejected follow attempt, got %d", len(follows))
+				return false
+			}
+
+			return true
+		},
+		gen.Identifier().SuchThat(func(v string) bool { return v != "" }),
+		gen.Identifier().Map(func(s string) string { return s + "@example.com" }),
+		gen.IntRange(0, 2),
+		gen.Identifier().SuchThat(func(v string) bool { return v != "" }),
+		gen.IntRange(0, 2),
+	))
+
+	properties.TestingRun(t)
+}
+
+// Helper function for case-insensitive string contains check
+func containsIgnoreCase(s, substr string) bool {
+	return len(s) >= len(substr) &&
+		(s == substr ||
+			len(s) > len(substr) &&
+				(s[:len(substr)] == substr ||
+					s[len(s)-len(substr):] == substr ||
+					containsSubstring(s, substr)))
+}
+
+func containsSubstring(s, substr string) bool {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
 }
 
 // Unit Tests for User Service

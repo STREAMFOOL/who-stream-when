@@ -520,7 +520,7 @@ func (h *AuthenticatedHandler) renderSimpleCalendar(w http.ResponseWriter, progr
 
 // getUserIDFromContext retrieves the user ID from the request context
 func (h *AuthenticatedHandler) getUserIDFromContext(ctx context.Context) string {
-	userID, ok := ctx.Value("userID").(string)
+	userID, ok := ctx.Value(userIDKey).(string)
 	if !ok {
 		return ""
 	}

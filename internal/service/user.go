@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"who-live-when/internal/config"
 	"who-live-when/internal/domain"
 	"who-live-when/internal/repository"
 
@@ -18,6 +19,7 @@ type userService struct {
 	activityRepo  repository.ActivityRecordRepository
 	streamerRepo  repository.StreamerRepository
 	programmeRepo repository.CustomProgrammeRepository
+	featureFlags  *config.FeatureFlags
 }
 
 // NewUserService creates a new UserService
@@ -34,6 +36,25 @@ func NewUserService(
 		activityRepo:  activityRepo,
 		streamerRepo:  streamerRepo,
 		programmeRepo: programmeRepo,
+	}
+}
+
+// NewUserServiceWithFeatureFlags creates a new UserService with feature flag support
+func NewUserServiceWithFeatureFlags(
+	userRepo repository.UserRepository,
+	followRepo repository.FollowRepository,
+	activityRepo repository.ActivityRecordRepository,
+	streamerRepo repository.StreamerRepository,
+	programmeRepo repository.CustomProgrammeRepository,
+	featureFlags config.FeatureFlags,
+) domain.UserService {
+	return &userService{
+		userRepo:      userRepo,
+		followRepo:    followRepo,
+		activityRepo:  activityRepo,
+		streamerRepo:  streamerRepo,
+		programmeRepo: programmeRepo,
+		featureFlags:  &featureFlags,
 	}
 }
 
@@ -105,6 +126,42 @@ func (s *userService) FollowStreamer(ctx context.Context, userID, streamerID str
 	}
 	if streamerID == "" {
 		return fmt.Errorf("streamer ID cannot be empty")
+	}
+
+	// Validate platform is enabled if feature flags are configured
+	if s.featureFlags != nil {
+		streamer, err := s.streamerRepo.GetByID(ctx, streamerID)
+		if err != nil {
+			return fmt.Errorf("failed to get streamer: %w", err)
+		}
+		if streamer == nil {
+			return fmt.Errorf("streamer not found")
+		}
+
+		// Check if any of the streamer's platforms are enabled
+		platformEnabled := false
+		for _, platform := range streamer.Platforms {
+			var flag config.FeatureFlags
+			switch platform {
+			case "kick":
+				flag = config.FeatureKick
+			case "youtube":
+				flag = config.FeatureYouTube
+			case "twitch":
+				flag = config.FeatureTwitch
+			default:
+				continue
+			}
+
+			if s.featureFlags.IsEnabled(flag) {
+				platformEnabled = true
+				break
+			}
+		}
+
+		if !platformEnabled {
+			return fmt.Errorf("platform not available: streamer's platform is currently disabled")
+		}
 	}
 
 	// Check if already following (idempotent operation)
