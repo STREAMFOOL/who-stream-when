@@ -62,7 +62,7 @@ func setupTestHandler(t *testing.T) (*PublicHandler, *sqlite.DB, func()) {
 	streamerService := service.NewStreamerService(streamerRepo)
 	heatmapService := service.NewHeatmapService(activityRepo, heatmapRepo)
 	liveStatusService := service.NewLiveStatusService(streamerRepo, liveStatusRepo, make(map[string]domain.PlatformAdapter))
-	userService := service.NewUserService(userRepo, followRepo, activityRepo)
+	userService := service.NewUserService(userRepo, followRepo, activityRepo, streamerRepo)
 	tvProgrammeService := service.NewTVProgrammeService(heatmapService, userRepo, followRepo, streamerRepo, activityRepo)
 
 	// Initialize mock platform adapters for search
@@ -72,7 +72,7 @@ func setupTestHandler(t *testing.T) (*PublicHandler, *sqlite.DB, func()) {
 	searchService := service.NewSearchService(mockYouTube, mockKick, mockTwitch)
 
 	// Initialize OAuth configuration (with dummy values for testing)
-	oauthConfig := auth.NewGoogleOAuthConfig("test-client-id", "test-client-secret", "http://localhost:8080/auth/callback")
+	oauthConfig := auth.NewGoogleOAuthConfig("test-client-id", "test-client-secret", "http://localhost:8080/auth/google/callback")
 	sessionManager := auth.NewSessionManager("test-session", false, 3600)
 	stateStore := auth.NewStateStore()
 
@@ -645,14 +645,14 @@ func TestHandleSearch_NoResults(t *testing.T) {
 	streamerService := service.NewStreamerService(streamerRepo)
 	heatmapService := service.NewHeatmapService(activityRepo, heatmapRepo)
 	liveStatusService := service.NewLiveStatusService(streamerRepo, liveStatusRepo, make(map[string]domain.PlatformAdapter))
-	userService := service.NewUserService(userRepo, followRepo, activityRepo)
+	userService := service.NewUserService(userRepo, followRepo, activityRepo, streamerRepo)
 	tvProgrammeService := service.NewTVProgrammeService(heatmapService, userRepo, followRepo, streamerRepo, activityRepo)
 
 	// Create mock adapters that return empty results
 	emptyMock := &emptySearchMockAdapter{}
 	searchService := service.NewSearchService(emptyMock, emptyMock, emptyMock)
 
-	oauthConfig := auth.NewGoogleOAuthConfig("test-client-id", "test-client-secret", "http://localhost:8080/auth/callback")
+	oauthConfig := auth.NewGoogleOAuthConfig("test-client-id", "test-client-secret", "http://localhost:8080/auth/google/callback")
 	sessionManager := auth.NewSessionManager("test-session", false, 3600)
 	stateStore := auth.NewStateStore()
 

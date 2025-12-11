@@ -16,6 +16,7 @@
 - `golang.org/x/oauth2`: Google OAuth authentication
 - `github.com/google/uuid`: UUID generation
 - `github.com/leanovate/gopter`: Property-based testing
+- `github.com/joho/godotenv`: Load environment variables from .env file
 - `modernc.org/sqlite`: Pure Go SQLite driver
 
 ## Architecture Patterns
@@ -61,10 +62,14 @@ golangci-lint run
 ```
 
 ## Environment Variables
-
 - `GOOGLE_CLIENT_ID`: Google OAuth client ID
 - `GOOGLE_CLIENT_SECRET`: Google OAuth client secret
-- `GOOGLE_REDIRECT_URL`: OAuth callback URL (defaults to http://localhost:8080/auth/callback)
+- `GOOGLE_REDIRECT_URL`: OAuth callback URL (defaults to http://localhost:8080/auth/google/callback)
+- `KICK_CLIENT_ID`: Kick application client ID
+- `KICK_CLIENT_SECRET`: Kick application client secret
+- `YOUTUBE_API_KEY`: YouTube Data API v3 key (optional)
+- `TWITCH_CLIENT_ID`: Twitch application client ID (optional)
+- `TWITCH_CLIENT_SECRET`: Twitch application client secret (optional)
 
 ## Server Configuration
 

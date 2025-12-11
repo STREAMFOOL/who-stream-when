@@ -42,3 +42,6 @@ Thumbs.db
 *.log
 *.db-shm
 *.db-wal
+
+# custom
+.env

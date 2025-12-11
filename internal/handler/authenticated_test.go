@@ -99,7 +99,7 @@ func setupTestAuthenticatedHandler(t *testing.T) (*AuthenticatedHandler, *domain
 	streamerService := service.NewStreamerService(streamerRepo)
 	heatmapService := service.NewHeatmapService(activityRepo, heatmapRepo)
 	liveStatusService := service.NewLiveStatusService(streamerRepo, liveStatusRepo, platformAdapters)
-	userService := service.NewUserService(userRepo, followRepo, activityRepo)
+	userService := service.NewUserService(userRepo, followRepo, activityRepo, streamerRepo)
 	tvProgrammeService := service.NewTVProgrammeService(heatmapService, userRepo, followRepo, streamerRepo, activityRepo)
 	searchService := service.NewSearchService(
 		platformAdapters["youtube"],
@@ -155,7 +155,7 @@ func createAuthenticatedRequest(_ *testing.T, handler *AuthenticatedHandler, use
 	}
 
 	// Add user ID to context (simulating middleware)
-	ctx := context.WithValue(req.Context(), "userID", user.ID)
+	ctx := context.WithValue(req.Context(), userIDKey, user.ID)
 	req = req.WithContext(ctx)
 
 	return req, httptest.NewRecorder()

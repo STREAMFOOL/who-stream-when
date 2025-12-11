@@ -121,7 +121,7 @@ func TestProperty_UXE_SearchResultCompleteness(t *testing.T) {
 				}
 
 				// Must have handles map
-				if result.Handles == nil || len(result.Handles) == 0 {
+				if len(result.Handles) == 0 {
 					return false
 				}
 

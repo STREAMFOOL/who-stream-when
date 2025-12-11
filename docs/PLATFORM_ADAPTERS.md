@@ -94,31 +94,37 @@ The adapter automatically requests an OAuth token on first use and caches it for
 
 **File**: `internal/adapter/kick.go`
 
-**Authentication**: None (public API)
+**Authentication**: OAuth 2.0 Client Credentials
 
 **Key Features**:
-- Uses Kick's public v2 API
-- No authentication required
+- Uses Kick's public v1 API (`api.kick.com`)
+- OAuth2 client credentials flow for authentication
+- Automatic token caching and refresh (60 seconds before expiry)
+- Thread-safe token management with mutex
 - Checks `livestream` field for live status
-- Simple JSON response parsing
 
 **Handle Format**: Kick slug/username (e.g., `xqc`)
 
 **API Endpoints**:
+- `POST https://id.kick.com/oauth/token` - Obtain access token
 - `GET /api/v2/channels/:slug` - Get channel info and live status
 - `GET /api/search` - Search for channels
+- `GET /public/v1/channels` - Public API for connection check
 
 **Rate Limits**: Undocumented (use conservative request patterns)
 
 **Error Handling**:
 - Returns offline status if `livestream` field is null
 - Handles 404 for non-existent channels
-- Returns structured errors for API failures
+- Returns structured errors for API and authentication failures
 
 **Configuration**:
 ```go
-adapter := NewKickAdapter()
+adapter := NewKickAdapter(clientID, clientSecret)
 ```
+
+**Token Management**:
+The adapter automatically requests an OAuth token using client credentials on first API call. Tokens are cached in memory and refreshed 60 seconds before expiry. The implementation is thread-safe using read-write mutex.
 
 ---
 
@@ -273,7 +279,10 @@ twitchAdapter := adapter.NewTwitchAdapter(
     os.Getenv("TWITCH_CLIENT_ID"),
     os.Getenv("TWITCH_CLIENT_SECRET"),
 )
-kickAdapter := adapter.NewKickAdapter()
+kickAdapter := adapter.NewKickAdapter(
+    os.Getenv("KICK_CLIENT_ID"),
+    os.Getenv("KICK_CLIENT_SECRET"),
+)
 newPlatformAdapter := adapter.NewNewPlatformAdapter(os.Getenv("NEWPLATFORM_API_KEY"))
 
 // Pass to service

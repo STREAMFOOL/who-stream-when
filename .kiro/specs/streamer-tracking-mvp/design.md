@@ -2,7 +2,7 @@
 
 ## Overview
 
-The "Who Live When" application is a Go-based web service that tracks streamer availability across multiple platforms (YouTube, Kick, Twitch) and provides activity insights to users. The system is designed with a layered architecture separating concerns into distinct components: HTTP handlers, business logic services, data persistence (SQLite), and external platform integrations.
+The "Who Stream When" application is a Go-based web service that tracks streamer availability across multiple platforms (YouTube, Kick, Twitch) and provides activity insights to users. The system is designed with a layered architecture separating concerns into distinct components: HTTP handlers, business logic services, data persistence (SQLite), and external platform integrations.
 
 The frontend uses plain HTML/JS/CSS with HTMX for reactive updates, enabling real-time status changes without full page reloads. The home page displays a default week view showing the most viewed streamers, providing immediate value to both registered and unregistered users. The architecture prioritizes flexibility and extensibility, allowing new platforms, features, and UI improvements without requiring core rewrites.
 

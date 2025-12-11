@@ -79,7 +79,7 @@ func TestCache_CustomTTL(t *testing.T) {
 	time.Sleep(150 * time.Millisecond)
 
 	// Should be expired now
-	value, found = cache.Get("key1")
+	_, found = cache.Get("key1")
 	if found {
 		t.Error("expected key1 to be expired")
 	}

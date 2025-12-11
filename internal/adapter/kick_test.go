@@ -25,7 +25,7 @@ func TestKickAdapter_GetLiveStatus_Live(t *testing.T) {
 	}))
 	defer server.Close()
 
-	adapter := NewKickAdapter()
+	adapter := NewKickAdapter("test-client-id", "test-client-secret")
 
 	ctx := context.Background()
 	status, err := adapter.GetLiveStatus(ctx, "test-streamer")
@@ -51,7 +51,7 @@ func TestKickAdapter_GetLiveStatus_Offline(t *testing.T) {
 	}))
 	defer server.Close()
 
-	adapter := NewKickAdapter()
+	adapter := NewKickAdapter("test-client-id", "test-client-secret")
 
 	ctx := context.Background()
 	status, err := adapter.GetLiveStatus(ctx, "test-streamer")
@@ -71,7 +71,7 @@ func TestKickAdapter_GetLiveStatus_NotFound(t *testing.T) {
 	}))
 	defer server.Close()
 
-	adapter := NewKickAdapter()
+	adapter := NewKickAdapter("test-client-id", "test-client-secret")
 
 	ctx := context.Background()
 	_, err := adapter.GetLiveStatus(ctx, "nonexistent-channel")
@@ -100,7 +100,7 @@ func TestKickAdapter_SearchStreamer(t *testing.T) {
 	}))
 	defer server.Close()
 
-	adapter := NewKickAdapter()
+	adapter := NewKickAdapter("test-client-id", "test-client-secret")
 
 	ctx := context.Background()
 	results, err := adapter.SearchStreamer(ctx, "test")
@@ -127,7 +127,7 @@ func TestKickAdapter_GetChannelInfo(t *testing.T) {
 	}))
 	defer server.Close()
 
-	adapter := NewKickAdapter()
+	adapter := NewKickAdapter("test-client-id", "test-client-secret")
 
 	ctx := context.Background()
 	info, err := adapter.GetChannelInfo(ctx, "test-streamer")
@@ -147,7 +147,7 @@ func TestKickAdapter_GetChannelInfo_NotFound(t *testing.T) {
 	}))
 	defer server.Close()
 
-	adapter := NewKickAdapter()
+	adapter := NewKickAdapter("test-client-id", "test-client-secret")
 
 	ctx := context.Background()
 	_, err := adapter.GetChannelInfo(ctx, "nonexistent-channel")

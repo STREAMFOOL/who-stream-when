@@ -109,8 +109,8 @@ func TestLoad_DefaultValues(t *testing.T) {
 	if cfg.DatabasePath != "./data/who-live-when.db" {
 		t.Errorf("DatabasePath = %s, want ./data/who-live-when.db", cfg.DatabasePath)
 	}
-	if cfg.GoogleRedirectURL != "http://localhost:8080/auth/callback" {
-		t.Errorf("GoogleRedirectURL = %s, want http://localhost:8080/auth/callback", cfg.GoogleRedirectURL)
+	if cfg.GoogleRedirectURL != "http://localhost:8080/auth/google/callback" {
+		t.Errorf("GoogleRedirectURL = %s, want http://localhost:8080/auth/google/callback", cfg.GoogleRedirectURL)
 	}
 	if cfg.ServerPort != "8080" {
 		t.Errorf("ServerPort = %s, want 8080", cfg.ServerPort)

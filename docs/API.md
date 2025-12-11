@@ -69,7 +69,7 @@ Host: localhost:8080
 
 ---
 
-### GET /auth/callback
+### GET /auth/google/callback
 
 **Description**: OAuth callback handler that processes Google authentication response.
 
@@ -83,7 +83,7 @@ Host: localhost:8080
 
 **Example**:
 ```
-GET /auth/callback?code=4/0AY0e-g7...&state=random-state HTTP/1.1
+GET /auth/google/callback?code=4/0AY0e-g7...&state=random-state HTTP/1.1
 Host: localhost:8080
 ```
 

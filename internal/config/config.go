@@ -21,6 +21,8 @@ type Config struct {
 	YouTubeAPIKey  string
 	TwitchClientID string
 	TwitchSecret   string
+	KickClientID   string
+	KickSecret     string
 
 	// Server configuration
 	ServerPort      string
@@ -37,7 +39,11 @@ func Load() (*Config, error) {
 		// OAuth configuration (required)
 		GoogleClientID:     os.Getenv("GOOGLE_CLIENT_ID"),
 		GoogleClientSecret: os.Getenv("GOOGLE_CLIENT_SECRET"),
-		GoogleRedirectURL:  getEnvOrDefault("GOOGLE_REDIRECT_URL", "http://localhost:8080/auth/callback"),
+		GoogleRedirectURL:  getEnvOrDefault("GOOGLE_REDIRECT_URL", "http://localhost:8080/auth/google/callback"),
+
+		// Platform API keys (required)
+		KickClientID: os.Getenv("KICK_CLIENT_ID"),
+		KickSecret:   os.Getenv("KICK_CLIENT_SECRET"),
 
 		// Platform API keys (optional - will log warnings if missing)
 		YouTubeAPIKey:  os.Getenv("YOUTUBE_API_KEY"),
@@ -100,6 +106,7 @@ func (c *Config) LogConfiguration() {
 	log.Printf("Google Redirect URL: %s", c.GoogleRedirectURL)
 	log.Printf("YouTube API Key: %s", maskSecret(c.YouTubeAPIKey))
 	log.Printf("Twitch Client ID: %s", maskSecret(c.TwitchClientID))
+	log.Printf("Kick Client ID: %s", maskSecret(c.KickClientID))
 	log.Printf("Server Port: %s", c.ServerPort)
 	log.Printf("Session Duration: %d seconds", c.SessionDuration)
 
@@ -109,6 +116,9 @@ func (c *Config) LogConfiguration() {
 	}
 	if c.TwitchClientID == "" || c.TwitchSecret == "" {
 		log.Println("WARNING: TWITCH_CLIENT_ID or TWITCH_SECRET not set - Twitch search will have limited functionality")
+	}
+	if c.KickClientID == "" || c.KickSecret == "" {
+		log.Println("WARNING: KICK_CLIENT_ID or KICK_CLIENT_SECRET not set - Kick API will have limited functionality")
 	}
 
 	log.Println("=================================")

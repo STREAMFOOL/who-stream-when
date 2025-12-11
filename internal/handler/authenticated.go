@@ -14,7 +14,9 @@ import (
 	"who-live-when/internal/service"
 )
 
-// Note: html/template is still needed for the templates field type
+type contextKey string
+
+const userIDKey contextKey = "user-id"
 
 // AuthenticatedHandler handles authenticated routes
 type AuthenticatedHandler struct {
@@ -537,7 +539,7 @@ func (h *AuthenticatedHandler) RequireAuth(next http.HandlerFunc) http.HandlerFu
 		}
 
 		// Add user ID to context
-		ctx := context.WithValue(r.Context(), "userID", userID)
+		ctx := context.WithValue(r.Context(), userIDKey, userID)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	}
 }

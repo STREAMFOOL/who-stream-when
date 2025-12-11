@@ -16,9 +16,14 @@ import (
 	"who-live-when/internal/handler"
 	"who-live-when/internal/repository/sqlite"
 	"who-live-when/internal/service"
+
+	"github.com/joho/godotenv"
 )
 
 func main() {
+	// Load .env file if it exists (ignore error if file doesn't exist)
+	_ = godotenv.Load()
+
 	// Load configuration from environment variables
 	cfg, err := config.Load()
 	if err != nil {
@@ -49,9 +54,16 @@ func main() {
 	heatmapRepo := sqlite.NewHeatmapRepository(db)
 
 	// Initialize platform adapters for external streaming APIs
+	kickAdapter := adapter.NewKickAdapter(cfg.KickClientID, cfg.KickSecret)
+	if err := kickAdapter.CheckConnection(context.Background()); err != nil {
+		log.Printf("WARNING: Kick API connection check failed: %v", err)
+	} else {
+		log.Println("Kick API connection verified")
+	}
+
 	platformAdapters := map[string]domain.PlatformAdapter{
 		"youtube": adapter.NewYouTubeAdapter(cfg.YouTubeAPIKey),
-		"kick":    adapter.NewKickAdapter(),
+		"kick":    kickAdapter,
 		"twitch":  adapter.NewTwitchAdapter(cfg.TwitchClientID, cfg.TwitchSecret),
 	}
 
@@ -105,7 +117,7 @@ func main() {
 	mux.HandleFunc("/", publicHandler.HandleHome)
 	mux.HandleFunc("/streamer/{id}", publicHandler.HandleStreamerDetail)
 	mux.HandleFunc("/login", publicHandler.HandleLogin)
-	mux.HandleFunc("/auth/callback", publicHandler.HandleAuthCallback)
+	mux.HandleFunc("/auth/google/callback", publicHandler.HandleAuthCallback)
 	mux.HandleFunc("/logout", publicHandler.HandleLogout)
 	mux.HandleFunc("/search", publicHandler.HandleSearch)
 

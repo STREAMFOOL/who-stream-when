@@ -399,12 +399,7 @@ func TestProperty_CalendarNavigationWeekBoundaries(t *testing.T) {
 			}
 
 			// Property: Previous week should be exactly 7 days before normalized current week
-			expectedPrev := normalizedCurrent.AddDate(0, 0, -7)
-			if !prevWeek.Equal(expectedPrev) {
-				return false
-			}
-
-			return true
+			return prevWeek.Equal(normalizedCurrent.AddDate(0, 0, -7))
 		},
 		gen.Int64Range(time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC).Unix(), time.Date(2030, 12, 31, 0, 0, 0, 0, time.UTC).Unix()),
 	))

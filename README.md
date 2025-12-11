@@ -39,7 +39,7 @@ Set the following environment variables:
 ```bash
 export GOOGLE_CLIENT_ID="your-google-client-id"
 export GOOGLE_CLIENT_SECRET="your-google-client-secret"
-export GOOGLE_REDIRECT_URL="http://localhost:8080/auth/callback"
+export GOOGLE_REDIRECT_URL="http://localhost:8080/auth/google/callback"
 ```
 
 ### Running
@@ -148,7 +148,7 @@ rm data/who-live-when.db
 - `GET /` - Home page with most viewed streamers
 - `GET /streamer/:id` - Streamer detail page with heatmap
 - `GET /login` - Initiate Google OAuth flow
-- `GET /auth/callback` - OAuth callback handler
+- `GET /auth/google/callback` - OAuth callback handler
 - `GET /logout` - End user session
 
 ### Authenticated Routes

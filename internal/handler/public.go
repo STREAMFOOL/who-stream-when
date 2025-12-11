@@ -386,7 +386,7 @@ func (h *PublicHandler) HandleLogin(w http.ResponseWriter, r *http.Request) {
 }
 
 // HandleAuthCallback handles the OAuth callback from Google
-// GET /auth/callback
+// GET /auth/google/callback
 func (h *PublicHandler) HandleAuthCallback(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
