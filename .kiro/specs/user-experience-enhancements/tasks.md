@@ -1,18 +1,38 @@
 # Implementation Plan: User Experience Enhancements
 
-- [x] 1. Implement configuration management with environment variables
+- [x] 1. Implement configuration management with environment variables and feature flags
   - Create configuration service that reads from environment variables
   - Add validation for required configuration values
-  - Implement configuration logging (excluding secrets)
+  - Implement feature flag system using bit flags (iota)
+  - Add feature flag configuration for platforms (Kick enabled, YouTube/Twitch disabled by default)
+  - Implement configuration logging (excluding secrets) including feature flag status
   - Update main.go to use configuration service
-  - _Requirements: 5.1, 5.2, 5.3, 5.4, 10.1, 10.2, 10.3, 10.4, 10.5_
+  - _Requirements: 5.1, 5.2, 5.3, 5.4, 10.1, 10.2, 10.3, 10.4, 10.5, 10.6, 11.6_
 
 - [x] 1.1 Write unit tests for configuration loading and validation
   - Test loading with valid environment variables
   - Test missing required variables
   - Test invalid format variables
   - Test default value fallbacks
-  - _Requirements: 5.1, 5.2, 5.3, 5.4, 10.1, 10.2_
+  - Test feature flag parsing and validation
+  - Test feature flag bit operations (enable, disable, check)
+  - _Requirements: 5.1, 5.2, 5.3, 5.4, 10.1, 10.2, 10.5, 10.6_
+
+- [ ] 1.2 Implement feature flag system
+  - Define FeatureFlags type using bit flags with iota
+  - Implement IsEnabled, Enable, Disable methods
+  - Implement GetEnabledPlatforms method
+  - Add feature flag configuration to Config struct
+  - Parse feature flags from environment variables (default: Kick enabled, others disabled)
+  - _Requirements: 10.1, 10.2, 10.5, 10.6_
+
+- [ ] 1.3 Write unit tests for feature flag system
+  - Test bit flag operations (enable, disable, check)
+  - Test GetEnabledPlatforms returns correct list
+  - Test default configuration (Kick enabled, YouTube/Twitch disabled)
+  - Test enabling/disabling individual platforms
+  - Test multiple platforms enabled simultaneously
+  - _Requirements: 10.1, 10.2, 10.5, 10.6_
 
 - [x] 2. Enhance session manager for guest data storage
   - Extend SessionManager to store guest follows in cookies
@@ -78,15 +98,18 @@
   - Test default to global programme when no custom programme exists
   - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 4.1, 4.2, 4.3, 4.4_
 
-- [x] 5. Remove authentication requirements from search functionality
-  - Move search handler from authenticated to public handler
-  - Update routing to allow unauthenticated search access
-  - Update search UI to work for both authenticated and guest users
-  - _Requirements: 1.1, 1.2, 1.3, 1.4_
+- [x] 5. Implement dedicated search page with platform feature flag support
+  - Create dedicated search page at /search accessible to all users
+  - Implement platform filter UI showing all platforms (Kick, YouTube, Twitch)
+  - Add visual indicators for enabled vs disabled platforms (greyed out with "Coming Soon")
+  - Update search service to only query enabled platforms based on feature flags
+  - Add tooltips/messages explaining platform availability
+  - Prevent search on disabled platforms with informative messaging
+  - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 10.1, 10.2, 10.3_
 
-- [x] 5.1 Write property test for multi-platform search coverage
-  - **Property 1: Multi-Platform Search Coverage**
-  - **Validates: Requirements 1.2**
+- [x] 5.1 Write property test for feature flag platform filtering
+  - **Property 15: Feature Flag Platform Filtering**
+  - **Validates: Requirements 10.2**
 
 - [x] 5.2 Write property test for search result completeness
   - **Property 2: Search Result Completeness**
@@ -98,16 +121,22 @@
   - Test search result display
   - _Requirements: 1.1, 1.4_
 
-- [-] 6. Implement universal follow functionality with dual storage
+- [-] 6. Implement universal follow functionality with dual storage and platform validation
   - Update UserService to support both database and session-based follows
+  - Add platform validation to prevent following streamers from disabled platforms
   - Modify follow/unfollow handlers to work for guest users
   - Implement GetGuestFollows method to retrieve streamers by IDs
   - Update follow UI to work for both user types
-  - _Requirements: 2.1, 2.2, 2.3, 2.4_
+  - Add visual feedback when attempting to follow from disabled platform
+  - _Requirements: 2.1, 2.2, 2.3, 2.4, 10.4_
 
 - [x] 6.1 Write property test for registered user follow persistence
   - **Property 3: Registered User Follow Persistence**
   - **Validates: Requirements 2.1**
+
+- [ ] 6.1a Write property test for disabled platform rejection
+  - **Property 16: Disabled Platform Rejection**
+  - **Validates: Requirements 10.4**
 
 - [x] 6.2 Write property test for follow list completeness
   - **Property 5: Follow List Completeness**

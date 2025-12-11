@@ -12,19 +12,23 @@ This feature enhances the "Who Live When" application by removing access restric
 - **Environment Variable**: External configuration value read from the system environment at application startup
 - **Guest User**: An unregistered user accessing the application without authentication
 - **Database Connection String**: Configuration parameter specifying how to connect to the SQLite database
+- **Feature Flag**: A configuration mechanism that enables or disables specific platform integrations at runtime
+- **Platform Adapter**: A component that integrates with external streaming platform APIs (YouTube, Kick, Twitch)
 
 ## Requirements
 
-### Requirement 1: Universal Search Access
+### Requirement 1: Universal Search Access with Platform Feature Flags
 
-**User Story:** As any user (registered or unregistered), I want to search for streamers across all platforms, so that I can discover new content creators without needing to create an account.
+**User Story:** As any user (registered or unregistered), I want to search for streamers on a dedicated search page, so that I can discover new content creators without needing to create an account.
 
 #### Acceptance Criteria
 
-1. WHEN any user accesses the search functionality THEN the system SHALL allow the search without requiring authentication
-2. WHEN a search query is submitted THEN the system SHALL query YouTube, Kick, and Twitch platforms and return matching streamers
-3. WHEN search results are displayed THEN the system SHALL show streamer name, handle, platform information, and current live status
-4. WHEN no results are found THEN the system SHALL display a message indicating no streamers match the query
+1. WHEN any user accesses the search page THEN the system SHALL display the search interface without requiring authentication
+2. WHEN the search page loads THEN the system SHALL display all platform options (YouTube, Kick, Twitch) with visual indicators for enabled and disabled platforms
+3. WHEN a search query is submitted THEN the system SHALL query only the enabled platforms based on feature flags
+4. WHEN search results are displayed THEN the system SHALL show streamer name, handle, platform information, and current live status
+5. WHEN a disabled platform is selected THEN the system SHALL display a message indicating the platform is not yet available
+6. WHEN no results are found THEN the system SHALL display a message indicating no streamers match the query
 
 ### Requirement 2: Universal Follow Functionality
 
@@ -119,7 +123,20 @@ This feature enhances the "Who Live When" application by removing access restric
 4. WHEN a user clears their custom programme THEN the system SHALL revert to the global programme view
 5. WHERE a user is unregistered THEN the system SHALL display a notice that their programme is session-based
 
-### Requirement 10: Configuration Validation and Error Handling
+### Requirement 10: Feature Flag Management
+
+**User Story:** As a system administrator, I want to control which streaming platforms are enabled through feature flags, so that I can gradually roll out platform support.
+
+#### Acceptance Criteria
+
+1. WHEN the application starts THEN the system SHALL load feature flags from configuration defining which platforms are enabled
+2. WHEN a feature flag is disabled for a platform THEN the system SHALL not query that platform's API
+3. WHEN a user attempts to search a disabled platform THEN the system SHALL display the platform as greyed out with a "Coming Soon" indicator
+4. WHEN a user attempts to follow a streamer from a disabled platform THEN the system SHALL prevent the action and display an informative message
+5. WHERE Kick platform is configured THEN the system SHALL enable it by default as the primary supported platform
+6. WHERE YouTube and Twitch platforms are configured THEN the system SHALL disable them by default until explicitly enabled via feature flags
+
+### Requirement 11: Configuration Validation and Error Handling
 
 **User Story:** As a system administrator, I want clear error messages when configuration is invalid, so that I can quickly diagnose and fix deployment issues.
 
@@ -130,3 +147,4 @@ This feature enhances the "Who Live When" application by removing access restric
 3. WHEN the database connection string is invalid THEN the system SHALL log the connection error with details
 4. WHEN platform API credentials are invalid THEN the system SHALL log a warning and continue with limited functionality
 5. WHEN the application starts successfully THEN the system SHALL log all loaded configuration values (excluding secrets)
+6. WHEN feature flags are loaded THEN the system SHALL log which platforms are enabled and disabled

@@ -2,9 +2,11 @@
 
 ## Overview
 
-This design enhances the "Who Live When" application by removing authentication barriers, enabling universal access to search and follow functionality, and introducing custom programme creation for all users. The key architectural changes include implementing a dual-storage strategy (database for registered users, session cookies for guests), externalizing configuration through environment variables, and adding a programme management interface.
+This design enhances the "Who Live When" application by removing authentication barriers, enabling universal access to search and follow functionality, and introducing custom programme creation for all users. The key architectural changes include implementing a dual-storage strategy (database for registered users, session cookies for guests), externalizing configuration through environment variables, adding a programme management interface, and implementing a feature flag system for gradual platform rollout.
 
 The design maintains backward compatibility with the existing MVP while extending functionality to support guest users. Session-based storage uses secure HTTP-only cookies to persist guest data during their browsing session, with automatic migration to database storage upon registration. The configuration system uses environment variables with sensible defaults and clear error messages for missing required values.
+
+A feature flag system controls which streaming platforms are enabled, allowing gradual rollout of platform support. Initially, only Kick is enabled, with YouTube and Twitch disabled by default. The UI displays all platforms but visually indicates which are available.
 
 ## Architecture
 
@@ -148,6 +150,9 @@ type Config struct {
     ServerPort       string
     SessionSecret    string
     SessionDuration  int
+    
+    // Feature flags
+    FeatureFlags FeatureFlags
 }
 
 type ConfigService interface {
@@ -156,6 +161,81 @@ type ConfigService interface {
     LogConfiguration() // Logs config without secrets
 }
 ```
+
+### 6. Feature Flag Service
+
+Manages platform feature flags using bit flags for efficient storage and checking.
+
+```go
+// FeatureFlags represents enabled platform features using bit flags
+type FeatureFlags uint8
+
+const (
+    FeatureKick FeatureFlags = 1 << iota  // 0b001
+    FeatureYouTube                          // 0b010
+    FeatureTwitch                           // 0b100
+)
+
+// IsEnabled checks if a specific platform feature is enabled
+func (f FeatureFlags) IsEnabled(flag FeatureFlags) bool {
+    return f&flag != 0
+}
+
+// Enable adds a feature flag
+func (f *FeatureFlags) Enable(flag FeatureFlags) {
+    *f |= flag
+}
+
+// Disable removes a feature flag
+func (f *FeatureFlags) Disable(flag FeatureFlags) {
+    *f &^= flag
+}
+
+// GetEnabledPlatforms returns a list of enabled platform names
+func (f FeatureFlags) GetEnabledPlatforms() []string {
+    platforms := []string{}
+    if f.IsEnabled(FeatureKick) {
+        platforms = append(platforms, "kick")
+    }
+    if f.IsEnabled(FeatureYouTube) {
+        platforms = append(platforms, "youtube")
+    }
+    if f.IsEnabled(FeatureTwitch) {
+        platforms = append(platforms, "twitch")
+    }
+    return platforms
+}
+```
+
+## Search Page Design
+
+### Dedicated Search Interface
+
+The search page (`/search`) provides a dedicated interface for discovering streamers across all platforms:
+
+**Layout:**
+- Search input field with submit button
+- Platform filter buttons (Kick, YouTube, Twitch)
+- Search results grid showing streamer cards
+- Empty state messaging when no results found
+
+**Platform Filtering:**
+- Enabled platforms: Full color, clickable, functional
+- Disabled platforms: Greyed out, "Coming Soon" badge, non-clickable
+- Visual feedback when hovering over disabled platforms
+- Tooltip explaining platform availability
+
+**Search Behavior:**
+- Only queries enabled platforms based on feature flags
+- Displays results grouped by platform
+- Shows platform icon/badge on each result card
+- Provides "Add Streamer" action for results not in system
+
+**Accessibility:**
+- Both registered and unregistered users can access
+- Clear visual distinction between enabled/disabled platforms
+- Keyboard navigation support
+- Screen reader friendly labels
 
 ## Data Models
 
@@ -197,6 +277,33 @@ type GuestSession struct {
     FollowedStreamerIDs []string
     CustomProgramme     *CustomProgramme
     CreatedAt           time.Time
+}
+```
+
+### PlatformAvailability
+
+```go
+type PlatformAvailability struct {
+    Platform  string
+    Enabled   bool
+    Message   string  // e.g., "Coming Soon" for disabled platforms
+}
+
+type SearchPageData struct {
+    Query               string
+    Results             []*SearchResult
+    PlatformFilters     []PlatformAvailability
+    IsAuthenticated     bool
+}
+
+type SearchResult struct {
+    StreamerID      string  // Empty if not in system
+    Name            string
+    Handle          string
+    Platform        string
+    Thumbnail       string
+    IsLive          bool
+    InSystem        bool    // True if streamer already exists in database
 }
 ```
 
@@ -259,6 +366,14 @@ A property is a characteristic or behavior that should hold true across all vali
 ### Property 14: Streamer Addition Idempotence
 *For any* streamer with specific platform and handle, adding them multiple times should result in a single streamer record without duplicates.
 **Validates: Requirements 8.4**
+
+### Property 15: Feature Flag Platform Filtering
+*For any* search query, the system should only query platforms that are enabled via feature flags.
+**Validates: Requirements 10.2**
+
+### Property 16: Disabled Platform Rejection
+*For any* disabled platform, attempting to follow a streamer from that platform should be rejected with an appropriate error message.
+**Validates: Requirements 10.4**
 
 ## Error Handling
 
