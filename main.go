@@ -112,6 +112,7 @@ func main() {
 		heatmapService,
 		userService,
 		searchService,
+		programmeService,
 		sessionManager,
 	)
 

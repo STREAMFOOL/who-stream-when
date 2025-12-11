@@ -8,6 +8,25 @@
     <p>Welcome back, {{.User.Email}} | <a href="/programme">Manage Programme</a></p>
 </div>
 
+<!-- Programme Status Notice -->
+{{if .HasCustomProgramme}}
+<div class="programme-notice"
+    style="background-color: #d1ecf1; padding: 15px; margin: 20px 0; border-radius: 5px; border-left: 4px solid #0c5460;">
+    <h3 style="margin-top: 0;">📅 Custom Programme Active</h3>
+    <p>You're using a custom programme with {{len .CustomProgramme.StreamerIDs}} streamer(s). Your calendar shows only
+        these streamers.</p>
+    <a href="/programme" class="btn btn-secondary">Manage Programme</a>
+</div>
+{{else}}
+<div class="programme-notice"
+    style="background-color: #fff3cd; padding: 15px; margin: 20px 0; border-radius: 5px; border-left: 4px solid #856404;">
+    <h3 style="margin-top: 0;">🌍 Global Programme</h3>
+    <p>You're viewing the global programme with popular streamers. Create a custom programme to personalize your
+        calendar.</p>
+    <a href="/programme" class="btn btn-primary">Create Custom Programme</a>
+</div>
+{{end}}
+
 <!-- Search Form -->
 <form action="/search" method="POST" class="search-form" hx-post="/search" hx-target="#search-results"
     hx-swap="innerHTML" hx-indicator="#search-spinner">
@@ -53,9 +72,14 @@
             {{end}}
         </div>
 
-        <form action="/unfollow/{{.ID}}" method="POST" style="margin-top: 1rem;">
-            <button type="submit" class="btn btn-danger">Unfollow</button>
-        </form>
+        <div style="margin-top: 1rem; display: flex; gap: 10px;">
+            <form action="/unfollow/{{.ID}}" method="POST" style="display: inline;">
+                <button type="submit" class="btn btn-danger">Unfollow</button>
+            </form>
+            <form action="/programme/add/{{.ID}}" method="POST" style="display: inline;">
+                <button type="submit" class="btn btn-secondary">Add to Programme</button>
+            </form>
+        </div>
     </div>
     {{end}}
 </div>
@@ -63,6 +87,22 @@
 <div class="empty-state">
     <h3>No followed streamers yet</h3>
     <p>Use the search above to find and follow your favorite streamers!</p>
+</div>
+{{end}}
+
+<!-- Calendar Preview Section -->
+{{if .ProgrammeView}}
+<h2 style="margin: 2rem 0 1rem;">
+    {{if .HasCustomProgramme}}
+    Your Custom Programme Calendar
+    {{else}}
+    Global Programme Calendar
+    {{end}}
+</h2>
+<div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
+    <p>Showing {{len .ProgrammeView.Streamers}} streamer(s) with {{len .ProgrammeView.Entries}} predicted time slot(s)
+        this week.</p>
+    <a href="/calendar" class="btn btn-primary">View Full Calendar</a>
 </div>
 {{end}}
 {{end}}

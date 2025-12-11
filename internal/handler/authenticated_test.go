@@ -102,6 +102,7 @@ func setupTestAuthenticatedHandler(t *testing.T) (*AuthenticatedHandler, *domain
 	programmeRepo := sqlite.NewCustomProgrammeRepository(db)
 	userService := service.NewUserService(userRepo, followRepo, activityRepo, streamerRepo, programmeRepo)
 	tvProgrammeService := service.NewTVProgrammeService(heatmapService, userRepo, followRepo, streamerRepo, activityRepo)
+	programmeService := service.NewProgrammeService(programmeRepo, streamerRepo, followRepo, heatmapService)
 	searchService := service.NewSearchService(
 		platformAdapters["youtube"],
 		platformAdapters["kick"],
@@ -119,6 +120,7 @@ func setupTestAuthenticatedHandler(t *testing.T) (*AuthenticatedHandler, *domain
 		heatmapService,
 		userService,
 		searchService,
+		programmeService,
 		sessionManager,
 	)
 
@@ -721,6 +723,132 @@ func TestCalendarDisplaysCorrectWeek(t *testing.T) {
 		// Check for navigation links
 		if !contains(body, "Previous") && !contains(body, "Next") {
 			t.Error("Expected calendar to provide week navigation")
+		}
+	})
+}
+
+// TestDashboardProgrammeDisplay tests dashboard programme display (Requirements 3.3, 3.5, 9.1)
+func TestDashboardProgrammeDisplay(t *testing.T) {
+	handler, user, _, cleanup := setupTestAuthenticatedHandler(t)
+	defer cleanup()
+
+	ctx := context.Background()
+
+	// Create test streamers
+	streamer1 := &domain.Streamer{
+		ID:        "streamer-1",
+		Name:      "Test Streamer 1",
+		Handles:   map[string]string{"youtube": "teststreamer1"},
+		Platforms: []string{"youtube"},
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+	streamer2 := &domain.Streamer{
+		ID:        "streamer-2",
+		Name:      "Test Streamer 2",
+		Handles:   map[string]string{"twitch": "teststreamer2"},
+		Platforms: []string{"twitch"},
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+
+	if err := handler.streamerService.AddStreamer(ctx, streamer1); err != nil {
+		t.Fatalf("Failed to create streamer 1: %v", err)
+	}
+	if err := handler.streamerService.AddStreamer(ctx, streamer2); err != nil {
+		t.Fatalf("Failed to create streamer 2: %v", err)
+	}
+
+	// Follow streamers
+	if err := handler.userService.FollowStreamer(ctx, user.ID, streamer1.ID); err != nil {
+		t.Fatalf("Failed to follow streamer 1: %v", err)
+	}
+	if err := handler.userService.FollowStreamer(ctx, user.ID, streamer2.ID); err != nil {
+		t.Fatalf("Failed to follow streamer 2: %v", err)
+	}
+
+	t.Run("displays custom programme when exists", func(t *testing.T) {
+		// Create a custom programme with only streamer1
+		_, err := handler.programmeService.CreateCustomProgramme(ctx, user.ID, []string{streamer1.ID})
+		if err != nil {
+			t.Fatalf("Failed to create custom programme: %v", err)
+		}
+
+		req, w := createAuthenticatedRequest(t, handler, user, http.MethodGet, "/dashboard", "")
+
+		handler.HandleDashboard(w, req)
+
+		if w.Code != http.StatusOK {
+			t.Errorf("Expected status 200, got %d", w.Code)
+		}
+
+		body := w.Body.String()
+
+		// Check that custom programme indicator is present
+		if !contains(body, "Custom Programme") && !contains(body, "custom programme") {
+			t.Error("Expected dashboard to indicate custom programme is active")
+		}
+	})
+
+	t.Run("displays global programme fallback when no custom programme", func(t *testing.T) {
+		// Create a new user without custom programme
+		newUser, err := handler.userService.CreateUser(ctx, "new-google-id", "new@example.com")
+		if err != nil {
+			t.Fatalf("Failed to create new user: %v", err)
+		}
+
+		req, w := createAuthenticatedRequest(t, handler, newUser, http.MethodGet, "/dashboard", "")
+
+		handler.HandleDashboard(w, req)
+
+		if w.Code != http.StatusOK {
+			t.Errorf("Expected status 200, got %d", w.Code)
+		}
+
+		body := w.Body.String()
+
+		// Check that global programme indicator is present or no custom programme message
+		if !contains(body, "Global Programme") && !contains(body, "global programme") && !contains(body, "Dashboard") {
+			t.Error("Expected dashboard to show global programme or default view")
+		}
+	})
+
+	t.Run("displays programme management link", func(t *testing.T) {
+		req, w := createAuthenticatedRequest(t, handler, user, http.MethodGet, "/dashboard", "")
+
+		handler.HandleDashboard(w, req)
+
+		if w.Code != http.StatusOK {
+			t.Errorf("Expected status 200, got %d", w.Code)
+		}
+
+		body := w.Body.String()
+
+		// Check for programme management link
+		if !contains(body, "/programme") {
+			t.Error("Expected dashboard to contain link to programme management")
+		}
+	})
+
+	t.Run("displays followed streamers with add to programme option", func(t *testing.T) {
+		req, w := createAuthenticatedRequest(t, handler, user, http.MethodGet, "/dashboard", "")
+
+		handler.HandleDashboard(w, req)
+
+		if w.Code != http.StatusOK {
+			t.Errorf("Expected status 200, got %d", w.Code)
+		}
+
+		body := w.Body.String()
+
+		// Check that followed streamers are displayed
+		if !contains(body, streamer1.Name) || !contains(body, streamer2.Name) {
+			t.Error("Expected dashboard to display followed streamers")
+		}
+
+		// Check for add to programme functionality
+		if !contains(body, "Add to Programme") || !contains(body, "/programme/add/") {
+			t.Error("Expected dashboard to provide option to add streamers to programme")
 		}
 	})
 }

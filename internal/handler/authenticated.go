@@ -26,6 +26,7 @@ type AuthenticatedHandler struct {
 	heatmapService     domain.HeatmapService
 	userService        domain.UserService
 	searchService      *service.SearchService
+	programmeService   ProgrammeService
 	sessionManager     *auth.SessionManager
 	templates          *template.Template
 }
@@ -38,6 +39,7 @@ func NewAuthenticatedHandler(
 	heatmapService domain.HeatmapService,
 	userService domain.UserService,
 	searchService *service.SearchService,
+	programmeService ProgrammeService,
 	sessionManager *auth.SessionManager,
 ) *AuthenticatedHandler {
 	return &AuthenticatedHandler{
@@ -47,6 +49,7 @@ func NewAuthenticatedHandler(
 		heatmapService:     heatmapService,
 		userService:        userService,
 		searchService:      searchService,
+		programmeService:   programmeService,
 		sessionManager:     sessionManager,
 		templates:          LoadTemplates(),
 	}
@@ -85,22 +88,54 @@ func (h *AuthenticatedHandler) HandleDashboard(w http.ResponseWriter, r *http.Re
 		liveStatuses[streamer.ID] = status
 	}
 
+	// Check for custom programme
+	var customProgramme *domain.CustomProgramme
+	var programmeStreamers []*domain.Streamer
+	hasCustomProgramme := false
+
+	customProgramme, err = h.programmeService.GetCustomProgramme(ctx, userID)
+	if err == nil && customProgramme != nil && len(customProgramme.StreamerIDs) > 0 {
+		hasCustomProgramme = true
+
+		// Load streamers in the custom programme
+		programmeStreamerMap := make(map[string]bool)
+		for _, streamerID := range customProgramme.StreamerIDs {
+			programmeStreamerMap[streamerID] = true
+			streamer, err := h.streamerService.GetStreamer(ctx, streamerID)
+			if err != nil {
+				log.Printf("Error getting streamer %s: %v", streamerID, err)
+				continue
+			}
+			programmeStreamers = append(programmeStreamers, streamer)
+		}
+	}
+
+	// Get programme view (custom or global) for calendar display
+	programmeView, err := h.programmeService.GetProgrammeView(ctx, userID, time.Now())
+	if err != nil {
+		log.Printf("Error getting programme view: %v", err)
+	}
+
 	data := map[string]interface{}{
-		"User":              user,
-		"FollowedStreamers": followedStreamers,
-		"LiveStatuses":      liveStatuses,
-		"IsAuthenticated":   true,
+		"User":               user,
+		"FollowedStreamers":  followedStreamers,
+		"LiveStatuses":       liveStatuses,
+		"IsAuthenticated":    true,
+		"HasCustomProgramme": hasCustomProgramme,
+		"CustomProgramme":    customProgramme,
+		"ProgrammeStreamers": programmeStreamers,
+		"ProgrammeView":      programmeView,
 	}
 
 	// Try to render template, fallback to simple HTML if template not found
 	if err := h.templates.ExecuteTemplate(w, "dashboard.html", data); err != nil {
 		// Fallback to simple HTML response
-		h.renderSimpleDashboard(w, user, followedStreamers, liveStatuses)
+		h.renderSimpleDashboard(w, user, followedStreamers, liveStatuses, hasCustomProgramme, customProgramme)
 	}
 }
 
 // renderSimpleDashboard renders a simple HTML dashboard page
-func (h *AuthenticatedHandler) renderSimpleDashboard(w http.ResponseWriter, user *domain.User, followedStreamers []*domain.Streamer, liveStatuses map[string]*domain.LiveStatus) {
+func (h *AuthenticatedHandler) renderSimpleDashboard(w http.ResponseWriter, user *domain.User, followedStreamers []*domain.Streamer, liveStatuses map[string]*domain.LiveStatus, hasCustomProgramme bool, customProgramme *domain.CustomProgramme) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	fmt.Fprintf(w, `<!DOCTYPE html>
 <html>
@@ -112,19 +147,42 @@ func (h *AuthenticatedHandler) renderSimpleDashboard(w http.ResponseWriter, user
 		.live { background-color: #d4edda; }
 		.offline { background-color: #f8d7da; }
 		.header { background-color: #e7f3ff; padding: 10px; margin-bottom: 20px; }
+		.programme-notice { background-color: #fff3cd; padding: 10px; margin: 10px 0; border-radius: 5px; }
 	</style>
 </head>
 <body>
 	<div class="header">
 		<h1>Dashboard</h1>
-		<p>Welcome, %s | <a href="/">Home</a> | <a href="/calendar">Calendar</a> | <a href="/logout">Logout</a></p>
+		<p>Welcome, %s | <a href="/">Home</a> | <a href="/calendar">Calendar</a> | <a href="/programme">Manage Programme</a> | <a href="/logout">Logout</a></p>
 	</div>
+`, user.Email)
+
+	// Programme status notice
+	if hasCustomProgramme && customProgramme != nil {
+		fmt.Fprintf(w, `
+	<div class="programme-notice" style="background-color: #d1ecf1; border-left: 4px solid #0c5460;">
+		<h3>📅 Custom Programme Active</h3>
+		<p>You're using a custom programme with %d streamer(s). Your calendar shows only these streamers.</p>
+		<a href="/programme">Manage Programme</a>
+	</div>
+`, len(customProgramme.StreamerIDs))
+	} else {
+		fmt.Fprintf(w, `
+	<div class="programme-notice">
+		<h3>🌍 Global Programme</h3>
+		<p>You're viewing the global programme with popular streamers. Create a custom programme to personalize your calendar.</p>
+		<a href="/programme">Create Custom Programme</a>
+	</div>
+`)
+	}
+
+	fmt.Fprintf(w, `
 	<h2>Your Followed Streamers</h2>
 	<form action="/search" method="POST" style="margin-bottom: 20px;">
 		<input type="text" name="query" placeholder="Search for streamers..." required>
 		<button type="submit">Search</button>
 	</form>
-`, user.Email)
+`)
 
 	if len(followedStreamers) == 0 {
 		fmt.Fprintf(w, `<p>You haven't followed any streamers yet. Use the search above to find streamers!</p>`)
@@ -151,8 +209,11 @@ func (h *AuthenticatedHandler) renderSimpleDashboard(w http.ResponseWriter, user
 		<form action="/unfollow/%s" method="POST" style="display: inline;">
 			<button type="submit">Unfollow</button>
 		</form>
+		<form action="/programme/add/%s" method="POST" style="display: inline; margin-left: 10px;">
+			<button type="submit">Add to Programme</button>
+		</form>
 	</div>
-`, liveClass, streamer.ID, streamer.Name, liveText, streamLink, streamer.Platforms, streamer.ID)
+`, liveClass, streamer.ID, streamer.Name, liveText, streamLink, streamer.Platforms, streamer.ID, streamer.ID)
 		}
 	}
 

@@ -216,14 +216,14 @@
   - Test programme type indicator
   - _Requirements: 3.5, 4.1, 4.3, 4.4_
 
-- [ ] 11. Update dashboard for registered users with custom programme
+- [x] 11. Update dashboard for registered users with custom programme
   - Modify dashboard to show custom programme if exists
   - Add link to programme management interface
   - Display followed streamers with option to add to programme
   - Show calendar based on custom or global programme
   - _Requirements: 3.3, 3.5, 9.1_
 
-- [ ] 11.1 Write unit tests for dashboard programme display
+- [x] 11.1 Write unit tests for dashboard programme display
   - Test custom programme display
   - Test global programme fallback
   - Test programme management link
