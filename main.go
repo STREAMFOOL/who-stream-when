@@ -52,6 +52,7 @@ func main() {
 	activityRepo := sqlite.NewActivityRecordRepository(db)
 	liveStatusRepo := sqlite.NewLiveStatusRepository(db)
 	heatmapRepo := sqlite.NewHeatmapRepository(db)
+	programmeRepo := sqlite.NewCustomProgrammeRepository(db)
 
 	// Initialize platform adapters for external streaming APIs
 	kickAdapter := adapter.NewKickAdapter(cfg.KickClientID, cfg.KickSecret)
@@ -72,7 +73,7 @@ func main() {
 	streamerService := service.NewStreamerService(streamerRepo)
 	heatmapService := service.NewHeatmapService(activityRepo, heatmapRepo)
 	liveStatusService := service.NewLiveStatusService(streamerRepo, liveStatusRepo, platformAdapters)
-	userService := service.NewUserService(userRepo, followRepo, activityRepo, streamerRepo)
+	userService := service.NewUserService(userRepo, followRepo, activityRepo, streamerRepo, programmeRepo)
 	tvProgrammeService := service.NewTVProgrammeService(heatmapService, userRepo, followRepo, streamerRepo, activityRepo)
 
 	// Initialize Google OAuth for authentication

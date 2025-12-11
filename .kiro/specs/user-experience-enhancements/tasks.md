@@ -142,18 +142,18 @@
   - Test live status tracking initiation
   - _Requirements: 8.1, 8.2, 8.3, 8.4_
 
-- [ ] 8. Implement guest data migration on registration
+- [x] 8. Implement guest data migration on registration
   - Add MigrateGuestData method to UserService
   - Update authentication callback to migrate session data
   - Implement transactional migration (all or nothing)
   - Clear session data after successful migration
   - _Requirements: 7.5_
 
-- [ ] 8.1 Write property test for guest data migration
+- [x] 8.1 Write property test for guest data migration
   - **Property 12: Guest Data Migration on Registration**
   - **Validates: Requirements 7.5**
 
-- [ ] 8.2 Write unit tests for data migration
+- [x] 8.2 Write unit tests for data migration
   - Test successful migration of follows and programme
   - Test migration rollback on failure
   - Test session cleanup after migration

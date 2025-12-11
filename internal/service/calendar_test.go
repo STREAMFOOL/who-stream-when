@@ -64,6 +64,10 @@ func (m *mockUserService) GetStreamersByIDs(ctx context.Context, streamerIDs []s
 	return []*domain.Streamer{}, nil
 }
 
+func (m *mockUserService) MigrateGuestData(ctx context.Context, userID string, guestFollows []string, guestProgramme *domain.CustomProgramme) error {
+	return nil
+}
+
 func TestCalendarService_GetCalendarView(t *testing.T) {
 	ctx := context.Background()
 	userID := "user-1"

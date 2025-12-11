@@ -31,11 +31,12 @@ func TestCalendarView_Integration(t *testing.T) {
 	followRepo := sqlite.NewFollowRepository(db)
 	activityRepo := sqlite.NewActivityRecordRepository(db)
 	heatmapRepo := sqlite.NewHeatmapRepository(db)
+	programmeRepo := sqlite.NewCustomProgrammeRepository(db)
 
 	// Initialize services
 	streamerService := NewStreamerService(streamerRepo)
 	heatmapService := NewHeatmapService(activityRepo, heatmapRepo)
-	userService := NewUserService(userRepo, followRepo, activityRepo, streamerRepo)
+	userService := NewUserService(userRepo, followRepo, activityRepo, streamerRepo, programmeRepo)
 	tvProgrammeService := NewTVProgrammeService(heatmapService, userRepo, followRepo, streamerRepo, activityRepo)
 	calendarService := NewCalendarService(tvProgrammeService, userService)
 

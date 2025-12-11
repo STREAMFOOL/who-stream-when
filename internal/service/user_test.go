@@ -68,7 +68,8 @@ func TestProperty_UserSessionEstablishment(t *testing.T) {
 			followRepo := sqlite.NewFollowRepository(db)
 			activityRepo := sqlite.NewActivityRecordRepository(db)
 			streamerRepo := sqlite.NewStreamerRepository(db)
-			userService := NewUserService(userRepo, followRepo, activityRepo, streamerRepo)
+			programmeRepo := sqlite.NewCustomProgrammeRepository(db)
+			userService := NewUserService(userRepo, followRepo, activityRepo, streamerRepo, programmeRepo)
 
 			ctx := context.Background()
 
@@ -156,7 +157,8 @@ func TestProperty_FollowOperationIdempotence(t *testing.T) {
 			followRepo := sqlite.NewFollowRepository(db)
 			activityRepo := sqlite.NewActivityRecordRepository(db)
 			streamerRepo := sqlite.NewStreamerRepository(db)
-			userService := NewUserService(userRepo, followRepo, activityRepo, streamerRepo)
+			programmeRepo := sqlite.NewCustomProgrammeRepository(db)
+			userService := NewUserService(userRepo, followRepo, activityRepo, streamerRepo, programmeRepo)
 
 			ctx := context.Background()
 
@@ -275,7 +277,8 @@ func TestProperty_UnfollowRemovesRelationship(t *testing.T) {
 			followRepo := sqlite.NewFollowRepository(db)
 			activityRepo := sqlite.NewActivityRecordRepository(db)
 			streamerRepo := sqlite.NewStreamerRepository(db)
-			userService := NewUserService(userRepo, followRepo, activityRepo, streamerRepo)
+			programmeRepo := sqlite.NewCustomProgrammeRepository(db)
+			userService := NewUserService(userRepo, followRepo, activityRepo, streamerRepo, programmeRepo)
 
 			ctx := context.Background()
 
@@ -389,7 +392,8 @@ func TestProperty_FollowedStreamerVisibility(t *testing.T) {
 			followRepo := sqlite.NewFollowRepository(db)
 			activityRepo := sqlite.NewActivityRecordRepository(db)
 			streamerRepo := sqlite.NewStreamerRepository(db)
-			userService := NewUserService(userRepo, followRepo, activityRepo, streamerRepo)
+			programmeRepo := sqlite.NewCustomProgrammeRepository(db)
+			userService := NewUserService(userRepo, followRepo, activityRepo, streamerRepo, programmeRepo)
 
 			ctx := context.Background()
 
@@ -522,7 +526,8 @@ func TestProperty_ActivityTrackingOnFollow(t *testing.T) {
 			followRepo := sqlite.NewFollowRepository(db)
 			activityRepo := sqlite.NewActivityRecordRepository(db)
 			streamerRepo := sqlite.NewStreamerRepository(db)
-			userService := NewUserService(userRepo, followRepo, activityRepo, streamerRepo)
+			programmeRepo := sqlite.NewCustomProgrammeRepository(db)
+			userService := NewUserService(userRepo, followRepo, activityRepo, streamerRepo, programmeRepo)
 
 			ctx := context.Background()
 
@@ -644,7 +649,8 @@ func TestProperty_RegisteredUserFollowPersistence(t *testing.T) {
 			followRepo := sqlite.NewFollowRepository(db)
 			activityRepo := sqlite.NewActivityRecordRepository(db)
 			streamerRepo := sqlite.NewStreamerRepository(db)
-			userService := NewUserService(userRepo, followRepo, activityRepo, streamerRepo)
+			programmeRepo := sqlite.NewCustomProgrammeRepository(db)
+			userService := NewUserService(userRepo, followRepo, activityRepo, streamerRepo, programmeRepo)
 
 			ctx := context.Background()
 
@@ -725,7 +731,8 @@ func TestProperty_FollowListCompleteness(t *testing.T) {
 			followRepo := sqlite.NewFollowRepository(db)
 			activityRepo := sqlite.NewActivityRecordRepository(db)
 			streamerRepo := sqlite.NewStreamerRepository(db)
-			userService := NewUserService(userRepo, followRepo, activityRepo, streamerRepo)
+			programmeRepo := sqlite.NewCustomProgrammeRepository(db)
+			userService := NewUserService(userRepo, followRepo, activityRepo, streamerRepo, programmeRepo)
 
 			ctx := context.Background()
 
@@ -804,7 +811,8 @@ func TestProperty_FollowListCompleteness(t *testing.T) {
 			followRepo := sqlite.NewFollowRepository(db)
 			activityRepo := sqlite.NewActivityRecordRepository(db)
 			streamerRepo := sqlite.NewStreamerRepository(db)
-			userService := NewUserService(userRepo, followRepo, activityRepo, streamerRepo)
+			programmeRepo := sqlite.NewCustomProgrammeRepository(db)
+			userService := NewUserService(userRepo, followRepo, activityRepo, streamerRepo, programmeRepo)
 
 			ctx := context.Background()
 
@@ -874,7 +882,8 @@ func TestCreateUser_WithGoogleOAuthData(t *testing.T) {
 	followRepo := sqlite.NewFollowRepository(db)
 	activityRepo := sqlite.NewActivityRecordRepository(db)
 	streamerRepo := sqlite.NewStreamerRepository(db)
-	userService := NewUserService(userRepo, followRepo, activityRepo, streamerRepo)
+	programmeRepo := sqlite.NewCustomProgrammeRepository(db)
+	userService := NewUserService(userRepo, followRepo, activityRepo, streamerRepo, programmeRepo)
 
 	ctx := context.Background()
 
@@ -916,7 +925,8 @@ func TestCreateUser_EmptyGoogleID(t *testing.T) {
 	followRepo := sqlite.NewFollowRepository(db)
 	activityRepo := sqlite.NewActivityRecordRepository(db)
 	streamerRepo := sqlite.NewStreamerRepository(db)
-	userService := NewUserService(userRepo, followRepo, activityRepo, streamerRepo)
+	programmeRepo := sqlite.NewCustomProgrammeRepository(db)
+	userService := NewUserService(userRepo, followRepo, activityRepo, streamerRepo, programmeRepo)
 
 	ctx := context.Background()
 
@@ -934,7 +944,8 @@ func TestCreateUser_EmptyEmail(t *testing.T) {
 	followRepo := sqlite.NewFollowRepository(db)
 	activityRepo := sqlite.NewActivityRecordRepository(db)
 	streamerRepo := sqlite.NewStreamerRepository(db)
-	userService := NewUserService(userRepo, followRepo, activityRepo, streamerRepo)
+	programmeRepo := sqlite.NewCustomProgrammeRepository(db)
+	userService := NewUserService(userRepo, followRepo, activityRepo, streamerRepo, programmeRepo)
 
 	ctx := context.Background()
 
@@ -952,7 +963,8 @@ func TestFollowStreamer_AndUnfollowStreamer(t *testing.T) {
 	followRepo := sqlite.NewFollowRepository(db)
 	activityRepo := sqlite.NewActivityRecordRepository(db)
 	streamerRepo := sqlite.NewStreamerRepository(db)
-	userService := NewUserService(userRepo, followRepo, activityRepo, streamerRepo)
+	programmeRepo := sqlite.NewCustomProgrammeRepository(db)
+	userService := NewUserService(userRepo, followRepo, activityRepo, streamerRepo, programmeRepo)
 
 	ctx := context.Background()
 
@@ -1015,7 +1027,8 @@ func TestGetUserFollows_ReturnsAllFollowedStreamers(t *testing.T) {
 	followRepo := sqlite.NewFollowRepository(db)
 	activityRepo := sqlite.NewActivityRecordRepository(db)
 	streamerRepo := sqlite.NewStreamerRepository(db)
-	userService := NewUserService(userRepo, followRepo, activityRepo, streamerRepo)
+	programmeRepo := sqlite.NewCustomProgrammeRepository(db)
+	userService := NewUserService(userRepo, followRepo, activityRepo, streamerRepo, programmeRepo)
 
 	ctx := context.Background()
 
@@ -1093,7 +1106,8 @@ func TestFollowStreamer_EmptyUserID(t *testing.T) {
 	followRepo := sqlite.NewFollowRepository(db)
 	activityRepo := sqlite.NewActivityRecordRepository(db)
 	streamerRepo := sqlite.NewStreamerRepository(db)
-	userService := NewUserService(userRepo, followRepo, activityRepo, streamerRepo)
+	programmeRepo := sqlite.NewCustomProgrammeRepository(db)
+	userService := NewUserService(userRepo, followRepo, activityRepo, streamerRepo, programmeRepo)
 
 	ctx := context.Background()
 
@@ -1111,7 +1125,8 @@ func TestFollowStreamer_EmptyStreamerID(t *testing.T) {
 	followRepo := sqlite.NewFollowRepository(db)
 	activityRepo := sqlite.NewActivityRecordRepository(db)
 	streamerRepo := sqlite.NewStreamerRepository(db)
-	userService := NewUserService(userRepo, followRepo, activityRepo, streamerRepo)
+	programmeRepo := sqlite.NewCustomProgrammeRepository(db)
+	userService := NewUserService(userRepo, followRepo, activityRepo, streamerRepo, programmeRepo)
 
 	ctx := context.Background()
 
@@ -1129,11 +1144,402 @@ func TestGetUser_EmptyID(t *testing.T) {
 	followRepo := sqlite.NewFollowRepository(db)
 	activityRepo := sqlite.NewActivityRecordRepository(db)
 	streamerRepo := sqlite.NewStreamerRepository(db)
-	userService := NewUserService(userRepo, followRepo, activityRepo, streamerRepo)
+	programmeRepo := sqlite.NewCustomProgrammeRepository(db)
+	userService := NewUserService(userRepo, followRepo, activityRepo, streamerRepo, programmeRepo)
 
 	ctx := context.Background()
 
 	_, err := userService.GetUser(ctx, "")
+	if err == nil {
+		t.Error("Expected error for empty user ID")
+	}
+}
+
+// **Feature: user-experience-enhancements, Property 12: Guest Data Migration on Registration**
+// **Validates: Requirements 7.5**
+// For any guest user with session data (follows and custom programme), registering or logging in
+// should migrate all session data to database storage under their user account.
+func TestProperty_GuestDataMigrationOnRegistration(t *testing.T) {
+	parameters := gopter.DefaultTestParameters()
+	parameters.MinSuccessfulTests = 100
+	properties := gopter.NewProperties(parameters)
+
+	properties.Property("guest data migrates to database on registration", prop.ForAll(
+		func(googleID string, email string, numFollows int) bool {
+			db := setupTestDB(t)
+			defer db.Close()
+
+			userRepo := sqlite.NewUserRepository(db)
+			followRepo := sqlite.NewFollowRepository(db)
+			activityRepo := sqlite.NewActivityRecordRepository(db)
+			streamerRepo := sqlite.NewStreamerRepository(db)
+			programmeRepo := sqlite.NewCustomProgrammeRepository(db)
+			userService := NewUserService(userRepo, followRepo, activityRepo, streamerRepo, programmeRepo)
+
+			ctx := context.Background()
+
+			// Create streamers for guest follows
+			guestFollowIDs := make([]string, numFollows)
+			for i := 0; i < numFollows; i++ {
+				streamer := &domain.Streamer{
+					ID:        uuid.New().String(),
+					Name:      fmt.Sprintf("Streamer%d", i),
+					Handles:   map[string]string{"youtube": fmt.Sprintf("streamer%d", i)},
+					Platforms: []string{"youtube"},
+					CreatedAt: time.Now(),
+					UpdatedAt: time.Now(),
+				}
+				if err := streamerRepo.Create(ctx, streamer); err != nil {
+					t.Logf("Failed to create streamer: %v", err)
+					return false
+				}
+				guestFollowIDs[i] = streamer.ID
+			}
+
+			// Create guest programme with subset of streamers
+			var guestProgramme *domain.CustomProgramme
+			if numFollows > 0 {
+				programmeStreamerIDs := guestFollowIDs[:max(1, numFollows/2)]
+				guestProgramme = &domain.CustomProgramme{
+					StreamerIDs: programmeStreamerIDs,
+				}
+			}
+
+			// Create user (simulating registration)
+			user, err := userService.CreateUser(ctx, googleID, email)
+			if err != nil {
+				t.Logf("Failed to create user: %v", err)
+				return false
+			}
+
+			// Migrate guest data
+			if err := userService.MigrateGuestData(ctx, user.ID, guestFollowIDs, guestProgramme); err != nil {
+				t.Logf("Failed to migrate guest data: %v", err)
+				return false
+			}
+
+			// Verify all follows were migrated
+			follows, err := userService.GetUserFollows(ctx, user.ID)
+			if err != nil {
+				t.Logf("Failed to get user follows: %v", err)
+				return false
+			}
+
+			if len(follows) != numFollows {
+				t.Logf("Expected %d follows, got %d", numFollows, len(follows))
+				return false
+			}
+
+			// Verify all guest follows are present
+			followMap := make(map[string]bool)
+			for _, follow := range follows {
+				followMap[follow.ID] = true
+			}
+			for _, guestFollowID := range guestFollowIDs {
+				if !followMap[guestFollowID] {
+					t.Logf("Guest follow %s not found in migrated follows", guestFollowID)
+					return false
+				}
+			}
+
+			// Verify custom programme was migrated if it existed
+			if guestProgramme != nil && len(guestProgramme.StreamerIDs) > 0 {
+				migratedProgramme, err := programmeRepo.GetByUserID(ctx, user.ID)
+				if err != nil {
+					t.Logf("Failed to get migrated programme: %v", err)
+					return false
+				}
+
+				if len(migratedProgramme.StreamerIDs) != len(guestProgramme.StreamerIDs) {
+					t.Logf("Expected %d programme streamers, got %d", len(guestProgramme.StreamerIDs), len(migratedProgramme.StreamerIDs))
+					return false
+				}
+
+				// Verify all programme streamers are present
+				programmeMap := make(map[string]bool)
+				for _, id := range migratedProgramme.StreamerIDs {
+					programmeMap[id] = true
+				}
+				for _, guestStreamerID := range guestProgramme.StreamerIDs {
+					if !programmeMap[guestStreamerID] {
+						t.Logf("Guest programme streamer %s not found in migrated programme", guestStreamerID)
+						return false
+					}
+				}
+
+				// Verify programme is associated with the user
+				if migratedProgramme.UserID != user.ID {
+					t.Logf("Programme user ID mismatch: expected %s, got %s", user.ID, migratedProgramme.UserID)
+					return false
+				}
+			}
+
+			return true
+		},
+		gen.Identifier().SuchThat(func(v string) bool { return v != "" }),
+		gen.Identifier().Map(func(s string) string { return s + "@example.com" }),
+		gen.IntRange(0, 10), // Number of guest follows
+	))
+
+	properties.TestingRun(t)
+}
+
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
+}
+
+// Unit Tests for Guest Data Migration
+
+func TestMigrateGuestData_SuccessfulMigration(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	userRepo := sqlite.NewUserRepository(db)
+	followRepo := sqlite.NewFollowRepository(db)
+	activityRepo := sqlite.NewActivityRecordRepository(db)
+	streamerRepo := sqlite.NewStreamerRepository(db)
+	programmeRepo := sqlite.NewCustomProgrammeRepository(db)
+	userService := NewUserService(userRepo, followRepo, activityRepo, streamerRepo, programmeRepo)
+
+	ctx := context.Background()
+
+	// Create user
+	user, err := userService.CreateUser(ctx, "google123", "test@example.com")
+	if err != nil {
+		t.Fatalf("Failed to create user: %v", err)
+	}
+
+	// Create streamers for guest follows
+	streamer1 := &domain.Streamer{
+		ID:        uuid.New().String(),
+		Name:      "Streamer1",
+		Handles:   map[string]string{"youtube": "streamer1"},
+		Platforms: []string{"youtube"},
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+	streamer2 := &domain.Streamer{
+		ID:        uuid.New().String(),
+		Name:      "Streamer2",
+		Handles:   map[string]string{"twitch": "streamer2"},
+		Platforms: []string{"twitch"},
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+	if err := streamerRepo.Create(ctx, streamer1); err != nil {
+		t.Fatalf("Failed to create streamer1: %v", err)
+	}
+	if err := streamerRepo.Create(ctx, streamer2); err != nil {
+		t.Fatalf("Failed to create streamer2: %v", err)
+	}
+
+	// Prepare guest data
+	guestFollows := []string{streamer1.ID, streamer2.ID}
+	guestProgramme := &domain.CustomProgramme{
+		StreamerIDs: []string{streamer1.ID},
+	}
+
+	// Migrate guest data
+	if err := userService.MigrateGuestData(ctx, user.ID, guestFollows, guestProgramme); err != nil {
+		t.Fatalf("Failed to migrate guest data: %v", err)
+	}
+
+	// Verify follows were migrated
+	follows, err := userService.GetUserFollows(ctx, user.ID)
+	if err != nil {
+		t.Fatalf("Failed to get user follows: %v", err)
+	}
+	if len(follows) != 2 {
+		t.Errorf("Expected 2 follows, got %d", len(follows))
+	}
+
+	// Verify custom programme was migrated
+	programme, err := programmeRepo.GetByUserID(ctx, user.ID)
+	if err != nil {
+		t.Fatalf("Failed to get custom programme: %v", err)
+	}
+	if len(programme.StreamerIDs) != 1 {
+		t.Errorf("Expected 1 streamer in programme, got %d", len(programme.StreamerIDs))
+	}
+	if programme.StreamerIDs[0] != streamer1.ID {
+		t.Errorf("Expected streamer1 in programme, got %s", programme.StreamerIDs[0])
+	}
+	if programme.UserID != user.ID {
+		t.Errorf("Expected programme user ID %s, got %s", user.ID, programme.UserID)
+	}
+}
+
+func TestMigrateGuestData_EmptyGuestData(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	userRepo := sqlite.NewUserRepository(db)
+	followRepo := sqlite.NewFollowRepository(db)
+	activityRepo := sqlite.NewActivityRecordRepository(db)
+	streamerRepo := sqlite.NewStreamerRepository(db)
+	programmeRepo := sqlite.NewCustomProgrammeRepository(db)
+	userService := NewUserService(userRepo, followRepo, activityRepo, streamerRepo, programmeRepo)
+
+	ctx := context.Background()
+
+	// Create user
+	user, err := userService.CreateUser(ctx, "google123", "test@example.com")
+	if err != nil {
+		t.Fatalf("Failed to create user: %v", err)
+	}
+
+	// Migrate empty guest data
+	if err := userService.MigrateGuestData(ctx, user.ID, []string{}, nil); err != nil {
+		t.Fatalf("Failed to migrate empty guest data: %v", err)
+	}
+
+	// Verify no follows were created
+	follows, err := userService.GetUserFollows(ctx, user.ID)
+	if err != nil {
+		t.Fatalf("Failed to get user follows: %v", err)
+	}
+	if len(follows) != 0 {
+		t.Errorf("Expected 0 follows, got %d", len(follows))
+	}
+
+	// Verify no custom programme was created
+	_, err = programmeRepo.GetByUserID(ctx, user.ID)
+	if err == nil {
+		t.Error("Expected error when getting non-existent programme")
+	}
+}
+
+func TestMigrateGuestData_OnlyFollows(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	userRepo := sqlite.NewUserRepository(db)
+	followRepo := sqlite.NewFollowRepository(db)
+	activityRepo := sqlite.NewActivityRecordRepository(db)
+	streamerRepo := sqlite.NewStreamerRepository(db)
+	programmeRepo := sqlite.NewCustomProgrammeRepository(db)
+	userService := NewUserService(userRepo, followRepo, activityRepo, streamerRepo, programmeRepo)
+
+	ctx := context.Background()
+
+	// Create user
+	user, err := userService.CreateUser(ctx, "google123", "test@example.com")
+	if err != nil {
+		t.Fatalf("Failed to create user: %v", err)
+	}
+
+	// Create streamer
+	streamer := &domain.Streamer{
+		ID:        uuid.New().String(),
+		Name:      "Streamer1",
+		Handles:   map[string]string{"youtube": "streamer1"},
+		Platforms: []string{"youtube"},
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+	if err := streamerRepo.Create(ctx, streamer); err != nil {
+		t.Fatalf("Failed to create streamer: %v", err)
+	}
+
+	// Migrate only follows (no programme)
+	guestFollows := []string{streamer.ID}
+	if err := userService.MigrateGuestData(ctx, user.ID, guestFollows, nil); err != nil {
+		t.Fatalf("Failed to migrate guest follows: %v", err)
+	}
+
+	// Verify follows were migrated
+	follows, err := userService.GetUserFollows(ctx, user.ID)
+	if err != nil {
+		t.Fatalf("Failed to get user follows: %v", err)
+	}
+	if len(follows) != 1 {
+		t.Errorf("Expected 1 follow, got %d", len(follows))
+	}
+
+	// Verify no custom programme was created
+	_, err = programmeRepo.GetByUserID(ctx, user.ID)
+	if err == nil {
+		t.Error("Expected error when getting non-existent programme")
+	}
+}
+
+func TestMigrateGuestData_OnlyProgramme(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	userRepo := sqlite.NewUserRepository(db)
+	followRepo := sqlite.NewFollowRepository(db)
+	activityRepo := sqlite.NewActivityRecordRepository(db)
+	streamerRepo := sqlite.NewStreamerRepository(db)
+	programmeRepo := sqlite.NewCustomProgrammeRepository(db)
+	userService := NewUserService(userRepo, followRepo, activityRepo, streamerRepo, programmeRepo)
+
+	ctx := context.Background()
+
+	// Create user
+	user, err := userService.CreateUser(ctx, "google123", "test@example.com")
+	if err != nil {
+		t.Fatalf("Failed to create user: %v", err)
+	}
+
+	// Create streamer
+	streamer := &domain.Streamer{
+		ID:        uuid.New().String(),
+		Name:      "Streamer1",
+		Handles:   map[string]string{"youtube": "streamer1"},
+		Platforms: []string{"youtube"},
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+	if err := streamerRepo.Create(ctx, streamer); err != nil {
+		t.Fatalf("Failed to create streamer: %v", err)
+	}
+
+	// Migrate only programme (no follows)
+	guestProgramme := &domain.CustomProgramme{
+		StreamerIDs: []string{streamer.ID},
+	}
+	if err := userService.MigrateGuestData(ctx, user.ID, []string{}, guestProgramme); err != nil {
+		t.Fatalf("Failed to migrate guest programme: %v", err)
+	}
+
+	// Verify no follows were created
+	follows, err := userService.GetUserFollows(ctx, user.ID)
+	if err != nil {
+		t.Fatalf("Failed to get user follows: %v", err)
+	}
+	if len(follows) != 0 {
+		t.Errorf("Expected 0 follows, got %d", len(follows))
+	}
+
+	// Verify custom programme was migrated
+	programme, err := programmeRepo.GetByUserID(ctx, user.ID)
+	if err != nil {
+		t.Fatalf("Failed to get custom programme: %v", err)
+	}
+	if len(programme.StreamerIDs) != 1 {
+		t.Errorf("Expected 1 streamer in programme, got %d", len(programme.StreamerIDs))
+	}
+}
+
+func TestMigrateGuestData_EmptyUserID(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	userRepo := sqlite.NewUserRepository(db)
+	followRepo := sqlite.NewFollowRepository(db)
+	activityRepo := sqlite.NewActivityRecordRepository(db)
+	streamerRepo := sqlite.NewStreamerRepository(db)
+	programmeRepo := sqlite.NewCustomProgrammeRepository(db)
+	userService := NewUserService(userRepo, followRepo, activityRepo, streamerRepo, programmeRepo)
+
+	ctx := context.Background()
+
+	// Try to migrate with empty user ID
+	err := userService.MigrateGuestData(ctx, "", []string{"streamer1"}, nil)
 	if err == nil {
 		t.Error("Expected error for empty user ID")
 	}

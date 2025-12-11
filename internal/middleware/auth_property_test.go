@@ -68,7 +68,8 @@ func TestProperty_ReadOnlyUserVisibility(t *testing.T) {
 			activityRepo := sqlite.NewActivityRecordRepository(db)
 			streamerRepo := sqlite.NewStreamerRepository(db)
 			heatmapRepo := sqlite.NewHeatmapRepository(db)
-			userService := service.NewUserService(userRepo, followRepo, activityRepo, streamerRepo)
+			programmeRepo := sqlite.NewCustomProgrammeRepository(db)
+			userService := service.NewUserService(userRepo, followRepo, activityRepo, streamerRepo, programmeRepo)
 			heatmapService := service.NewHeatmapService(activityRepo, heatmapRepo)
 			tvProgrammeService := service.NewTVProgrammeService(heatmapService, userRepo, followRepo, streamerRepo, activityRepo)
 

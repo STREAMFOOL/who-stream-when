@@ -45,6 +45,7 @@ type UserService interface {
 	GetStreamersByIDs(ctx context.Context, streamerIDs []string) ([]*Streamer, error)
 	FollowStreamer(ctx context.Context, userID, streamerID string) error
 	UnfollowStreamer(ctx context.Context, userID, streamerID string) error
+	MigrateGuestData(ctx context.Context, userID string, guestFollows []string, guestProgramme *CustomProgramme) error
 }
 
 // TVProgrammeService generates weekly predictions based on activity patterns

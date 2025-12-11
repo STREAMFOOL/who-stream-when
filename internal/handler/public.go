@@ -435,6 +435,30 @@ func (h *PublicHandler) HandleAuthCallback(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	// Migrate guest data if exists
+	guestFollows, _ := h.sessionManager.GetGuestFollows(r)
+	guestProgrammeData, _ := h.sessionManager.GetGuestProgramme(r)
+
+	var guestProgramme *domain.CustomProgramme
+	if guestProgrammeData != nil {
+		guestProgramme = &domain.CustomProgramme{
+			StreamerIDs: guestProgrammeData.StreamerIDs,
+		}
+	}
+
+	if len(guestFollows) > 0 || guestProgramme != nil {
+		if err := h.userService.MigrateGuestData(ctx, user.ID, guestFollows, guestProgramme); err != nil {
+			h.logger.Error("Failed to migrate guest data", map[string]interface{}{
+				"user_id": user.ID,
+				"error":   err.Error(),
+			})
+			// Don't fail the login, just log the error
+		} else {
+			// Clear guest data after successful migration
+			h.sessionManager.ClearGuestData(w)
+		}
+	}
+
 	// Set session
 	h.sessionManager.SetSession(w, user.ID)
 

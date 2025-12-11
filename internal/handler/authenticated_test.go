@@ -99,7 +99,8 @@ func setupTestAuthenticatedHandler(t *testing.T) (*AuthenticatedHandler, *domain
 	streamerService := service.NewStreamerService(streamerRepo)
 	heatmapService := service.NewHeatmapService(activityRepo, heatmapRepo)
 	liveStatusService := service.NewLiveStatusService(streamerRepo, liveStatusRepo, platformAdapters)
-	userService := service.NewUserService(userRepo, followRepo, activityRepo, streamerRepo)
+	programmeRepo := sqlite.NewCustomProgrammeRepository(db)
+	userService := service.NewUserService(userRepo, followRepo, activityRepo, streamerRepo, programmeRepo)
 	tvProgrammeService := service.NewTVProgrammeService(heatmapService, userRepo, followRepo, streamerRepo, activityRepo)
 	searchService := service.NewSearchService(
 		platformAdapters["youtube"],

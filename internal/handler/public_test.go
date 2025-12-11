@@ -62,7 +62,8 @@ func setupTestHandler(t *testing.T) (*PublicHandler, *sqlite.DB, func()) {
 	streamerService := service.NewStreamerService(streamerRepo)
 	heatmapService := service.NewHeatmapService(activityRepo, heatmapRepo)
 	liveStatusService := service.NewLiveStatusService(streamerRepo, liveStatusRepo, make(map[string]domain.PlatformAdapter))
-	userService := service.NewUserService(userRepo, followRepo, activityRepo, streamerRepo)
+	programmeRepo := sqlite.NewCustomProgrammeRepository(db)
+	userService := service.NewUserService(userRepo, followRepo, activityRepo, streamerRepo, programmeRepo)
 	tvProgrammeService := service.NewTVProgrammeService(heatmapService, userRepo, followRepo, streamerRepo, activityRepo)
 
 	// Initialize mock platform adapters for search
@@ -645,7 +646,8 @@ func TestHandleSearch_NoResults(t *testing.T) {
 	streamerService := service.NewStreamerService(streamerRepo)
 	heatmapService := service.NewHeatmapService(activityRepo, heatmapRepo)
 	liveStatusService := service.NewLiveStatusService(streamerRepo, liveStatusRepo, make(map[string]domain.PlatformAdapter))
-	userService := service.NewUserService(userRepo, followRepo, activityRepo, streamerRepo)
+	programmeRepo := sqlite.NewCustomProgrammeRepository(db)
+	userService := service.NewUserService(userRepo, followRepo, activityRepo, streamerRepo, programmeRepo)
 	tvProgrammeService := service.NewTVProgrammeService(heatmapService, userRepo, followRepo, streamerRepo, activityRepo)
 
 	// Create mock adapters that return empty results

@@ -13,10 +13,11 @@ import (
 
 // userService implements domain.UserService
 type userService struct {
-	userRepo     repository.UserRepository
-	followRepo   repository.FollowRepository
-	activityRepo repository.ActivityRecordRepository
-	streamerRepo repository.StreamerRepository
+	userRepo      repository.UserRepository
+	followRepo    repository.FollowRepository
+	activityRepo  repository.ActivityRecordRepository
+	streamerRepo  repository.StreamerRepository
+	programmeRepo repository.CustomProgrammeRepository
 }
 
 // NewUserService creates a new UserService
@@ -25,12 +26,14 @@ func NewUserService(
 	followRepo repository.FollowRepository,
 	activityRepo repository.ActivityRecordRepository,
 	streamerRepo repository.StreamerRepository,
+	programmeRepo repository.CustomProgrammeRepository,
 ) domain.UserService {
 	return &userService{
-		userRepo:     userRepo,
-		followRepo:   followRepo,
-		activityRepo: activityRepo,
-		streamerRepo: streamerRepo,
+		userRepo:      userRepo,
+		followRepo:    followRepo,
+		activityRepo:  activityRepo,
+		streamerRepo:  streamerRepo,
+		programmeRepo: programmeRepo,
 	}
 }
 
@@ -151,4 +154,36 @@ func (s *userService) GetStreamersByIDs(ctx context.Context, streamerIDs []strin
 	}
 
 	return streamers, nil
+}
+
+// MigrateGuestData migrates guest session data to persistent storage for a registered user
+func (s *userService) MigrateGuestData(ctx context.Context, userID string, guestFollows []string, guestProgramme *domain.CustomProgramme) error {
+	if userID == "" {
+		return fmt.Errorf("user ID cannot be empty")
+	}
+
+	// Migrate follows
+	for _, streamerID := range guestFollows {
+		if err := s.FollowStreamer(ctx, userID, streamerID); err != nil {
+			return fmt.Errorf("failed to migrate follow for streamer %s: %w", streamerID, err)
+		}
+	}
+
+	// Migrate custom programme if exists
+	if guestProgramme != nil && len(guestProgramme.StreamerIDs) > 0 {
+		now := time.Now()
+		programme := &domain.CustomProgramme{
+			ID:          uuid.New().String(),
+			UserID:      userID,
+			StreamerIDs: guestProgramme.StreamerIDs,
+			CreatedAt:   now,
+			UpdatedAt:   now,
+		}
+
+		if err := s.programmeRepo.Create(ctx, programme); err != nil {
+			return fmt.Errorf("failed to migrate custom programme: %w", err)
+		}
+	}
+
+	return nil
 }
