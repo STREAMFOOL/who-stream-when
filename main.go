@@ -140,6 +140,7 @@ func main() {
 
 	// API routes (JSON responses, search is public, others require authentication)
 	mux.HandleFunc("/api/search", publicHandler.HandleSearchAPI)
+	mux.HandleFunc("/api/livestatus/{id}", publicHandler.HandleLiveStatusAPI)
 
 	// Static file serving for CSS, JavaScript, and images
 	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))

@@ -543,3 +543,88 @@ a:hover {
 .back-link:hover {
     color: #374151;
 }
+
+/* Enhanced Live Status Display */
+.card-live {
+    border: 2px solid #22c55e;
+    background: linear-gradient(to bottom, #f0fdf4, white);
+}
+
+.stream-title-prominent {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #1f2937;
+    margin: 0.75rem 0;
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.viewer-count-prominent {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #166534;
+    margin: 0.5rem 0;
+}
+
+.btn-watch-now {
+    display: inline-block;
+    margin-top: 0.75rem;
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    color: white !important;
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.95rem;
+    text-decoration: none;
+    transition: transform 0.2s, box-shadow 0.2s;
+    box-shadow: 0 2px 4px rgba(239, 68, 68, 0.3);
+}
+
+.btn-watch-now:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(239, 68, 68, 0.4);
+    text-decoration: none;
+}
+
+.last-seen {
+    font-size: 0.75rem;
+    color: #9ca3af;
+    margin-top: 0.5rem;
+}
+
+.retry-link {
+    color: #6366f1;
+    font-weight: 500;
+}
+
+.retry-link:hover {
+    text-decoration: underline;
+}
+
+/* Refresh button for manual status refresh */
+.btn-refresh {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.25rem 0.5rem;
+    background: #f3f4f6;
+    color: #6b7280;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.btn-refresh:hover {
+    background: #e5e7eb;
+    color: #374151;
+}
+
+.status-unknown-message {
+    color: #92400e;
+    margin-bottom: 0.75rem;
+}

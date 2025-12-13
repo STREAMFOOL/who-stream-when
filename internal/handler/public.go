@@ -605,6 +605,67 @@ func (h *PublicHandler) HandleSearchAPI(w http.ResponseWriter, r *http.Request) 
 	})
 }
 
+// HandleLiveStatusAPI returns live status HTML fragment for HTMX updates
+// GET /api/livestatus/{id}
+func (h *PublicHandler) HandleLiveStatusAPI(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	streamerID := r.PathValue("id")
+
+	if streamerID == "" {
+		http.Error(w, "Streamer ID is required", http.StatusBadRequest)
+		return
+	}
+
+	// Force refresh the live status
+	status, err := h.liveStatusService.RefreshLiveStatus(ctx, streamerID)
+	if err != nil {
+		h.logger.Warn("Failed to refresh live status", map[string]interface{}{
+			"streamer_id": streamerID,
+			"error":       err.Error(),
+		})
+	}
+
+	// Render HTML fragment for HTMX
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	h.renderLiveStatusFragment(w, streamerID, status)
+}
+
+// renderLiveStatusFragment renders a live status HTML fragment for HTMX updates
+func (h *PublicHandler) renderLiveStatusFragment(w http.ResponseWriter, streamerID string, status *domain.LiveStatus) {
+	if status != nil && status.IsLive {
+		fmt.Fprintf(w, `<div class="status-section">
+<span class="status-badge status-live">🔴 Live on %s</span>`, status.Platform)
+		if status.Title != "" {
+			fmt.Fprintf(w, `
+<p class="stream-title-prominent">%s</p>`, status.Title)
+		}
+		if status.ViewerCount > 0 {
+			fmt.Fprintf(w, `
+<p class="viewer-count-prominent">👁 %d watching</p>`, status.ViewerCount)
+		}
+		if status.StreamURL != "" {
+			fmt.Fprintf(w, `
+<a href="%s" target="_blank" class="btn-watch-now">▶ Watch Now</a>`, status.StreamURL)
+		}
+		fmt.Fprintf(w, `
+</div>`)
+	} else if status != nil {
+		fmt.Fprintf(w, `<div class="status-section">
+<span class="status-badge status-offline">Offline</span>`)
+		if !status.UpdatedAt.IsZero() {
+			fmt.Fprintf(w, `
+<p class="last-seen">Last checked: %s</p>`, status.UpdatedAt.Format("Jan 2, 3:04 PM"))
+		}
+		fmt.Fprintf(w, `
+</div>`)
+	} else {
+		fmt.Fprintf(w, `<div class="status-section">
+<span class="status-badge status-unknown">⚠️ Status Unknown</span>
+<p class="status-help">Unable to reach Kick. <a href="/streamer/%s" class="retry-link">View details</a></p>
+</div>`, streamerID)
+	}
+}
+
 // GetUserFromSession retrieves the user from the session
 func (h *PublicHandler) GetUserFromSession(ctx context.Context, r *http.Request) (*domain.User, error) {
 	userID, err := h.sessionManager.GetSession(r)

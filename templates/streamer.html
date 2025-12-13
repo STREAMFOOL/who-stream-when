@@ -29,21 +29,26 @@
     {{if .LiveStatus.IsLive}}
     <h2>🔴 Live Now on {{.LiveStatus.Platform}}</h2>
     {{if .LiveStatus.Title}}
-    <p><strong>{{.LiveStatus.Title}}</strong></p>
+    <p class="stream-title-prominent">{{.LiveStatus.Title}}</p>
     {{end}}
     {{if gt .LiveStatus.ViewerCount 0}}
-    <p class="viewer-count">{{.LiveStatus.ViewerCount}} watching</p>
+    <p class="viewer-count-prominent">👁 {{.LiveStatus.ViewerCount}} watching</p>
     {{end}}
     {{if .LiveStatus.StreamURL}}
-    <a href="{{.LiveStatus.StreamURL}}" target="_blank" class="stream-link">Watch Stream</a>
+    <a href="{{.LiveStatus.StreamURL}}" target="_blank" class="btn-watch-now">▶ Watch Now</a>
     {{end}}
     {{else}}
     <h2>Currently Offline</h2>
+    {{if .LiveStatus.UpdatedAt}}
+    <p class="last-seen">Last checked: {{.LiveStatus.UpdatedAt.Format "Jan 2, 3:04 PM"}}</p>
+    {{end}}
     <p>This streamer is not currently live. Check the heatmap below to see when they usually stream.</p>
+    <button class="btn-refresh" onclick="htmx.trigger('#live-status', 'htmx:trigger')">🔄 Refresh Status</button>
     {{end}}
     {{else}}
     <h2>⚠️ Status Unknown</h2>
-    <p>Unable to reach the streaming platform. This could be temporary - try refreshing the page.</p>
+    <p class="status-unknown-message">Unable to reach Kick. This could be temporary.</p>
+    <button class="btn-refresh" onclick="htmx.trigger('#live-status', 'htmx:trigger')">🔄 Retry</button>
     {{end}}
 </div>
 

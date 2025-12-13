@@ -51,11 +51,13 @@
             {{if $isFollowed}}
             <span class="btn btn-secondary" style="cursor: default;">In Programme</span>
             {{else}}
+            {{range $platform, $handle := .Handles}}
             <form action="/streamer/add" method="POST" style="display: inline;">
-                <input type="hidden" name="platform" value="kick">
-                <input type="hidden" name="handle" value="{{index .Handles " kick"}}">
-                <button type="submit" class="btn btn-primary">Add to Tracker</button>
+                <input type="hidden" name="platform" value="{{$platform}}">
+                <input type="hidden" name="handle" value="{{$handle}}">
+                <button type="submit" class="btn btn-primary">Add {{$platform}} to Tracker</button>
             </form>
+            {{end}}
             {{end}}
         </div>
     </div>

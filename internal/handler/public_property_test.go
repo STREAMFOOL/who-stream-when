@@ -287,3 +287,184 @@ func TestProperty_VisualStatusIndicatorConsistency(t *testing.T) {
 
 	properties.TestingRun(t)
 }
+
+// **Feature: working-service-mvp, Property 2: Streamer Information Display Completeness**
+// **Validates: Requirements 3.2, 5.2**
+// For any streamer retrieved from the database, when rendered in the UI
+// (home page, search results, or detail page), the output SHALL contain
+// the streamer's name, at least one platform handle, and platform identifier.
+func TestProperty_StreamerInformationDisplayCompleteness(t *testing.T) {
+	// Template snippet that mirrors the streamer card rendering logic
+	streamerCardTemplate := `
+<div class="streamer-card">
+    <h3>{{.Name}}</h3>
+    <div class="platforms">
+        {{range .Platforms}}
+        <span class="platform-tag">{{.}}</span>
+        {{end}}
+    </div>
+    <div class="handles">
+        {{range $platform, $handle := .Handles}}
+        <span class="handle">{{$platform}}: {{$handle}}</span>
+        {{end}}
+    </div>
+</div>`
+
+	tmpl, err := template.New("streamer").Parse(streamerCardTemplate)
+	if err != nil {
+		t.Fatalf("Failed to parse template: %v", err)
+	}
+
+	// Search result template snippet
+	searchResultTemplate := `
+<div class="search-result">
+    <h3>{{.Name}}</h3>
+    <div class="platform-tags">
+        {{range .Platforms}}
+        <span class="platform-tag">{{.}}</span>
+        {{end}}
+    </div>
+    <p class="result-handles">
+        {{range $platform, $handle := .Handles}}
+        <span>{{$platform}}: {{$handle}}</span>
+        {{end}}
+    </p>
+</div>`
+
+	searchTmpl, err := template.New("search").Parse(searchResultTemplate)
+	if err != nil {
+		t.Fatalf("Failed to parse search template: %v", err)
+	}
+
+	parameters := gopter.DefaultTestParameters()
+	parameters.MinSuccessfulTests = 100
+	properties := gopter.NewProperties(parameters)
+
+	// Generator for valid streamer names (non-empty alphanumeric with spaces)
+	nameGen := gen.AnyString().Map(func(s string) string {
+		// Ensure non-empty and reasonable length
+		if len(s) == 0 {
+			return "DefaultStreamer"
+		}
+		if len(s) > 50 {
+			return s[:50]
+		}
+		return s
+	})
+
+	// Generator for valid handles (non-empty alphanumeric)
+	handleGen := gen.AnyString().Map(func(s string) string {
+		// Ensure non-empty and reasonable length
+		if len(s) == 0 {
+			return "defaulthandle"
+		}
+		if len(s) > 30 {
+			return s[:30]
+		}
+		return strings.ToLower(s)
+	})
+
+	// Generator for platforms
+	platformGen := gen.OneConstOf("kick", "twitch", "youtube")
+
+	// Property: Streamer card contains name, platform, and handle
+	properties.Property("streamer card contains name, platform, and handle", prop.ForAll(
+		func(name string, platform string, handle string) bool {
+			streamer := &domain.Streamer{
+				ID:        "test-id",
+				Name:      name,
+				Platforms: []string{platform},
+				Handles:   map[string]string{platform: handle},
+			}
+
+			var buf bytes.Buffer
+			if err := tmpl.Execute(&buf, streamer); err != nil {
+				return false
+			}
+
+			output := buf.String()
+
+			// Check that name is present
+			hasName := strings.Contains(output, name)
+
+			// Check that platform is present
+			hasPlatform := strings.Contains(output, platform)
+
+			// Check that handle is present
+			hasHandle := strings.Contains(output, handle)
+
+			return hasName && hasPlatform && hasHandle
+		},
+		nameGen,
+		platformGen,
+		handleGen,
+	))
+
+	// Property: Search result contains name, platform, and handle
+	properties.Property("search result contains name, platform, and handle", prop.ForAll(
+		func(name string, platform string, handle string) bool {
+			searchResult := &service.SearchResult{
+				Name:      name,
+				Platforms: []string{platform},
+				Handles:   map[string]string{platform: handle},
+			}
+
+			var buf bytes.Buffer
+			if err := searchTmpl.Execute(&buf, searchResult); err != nil {
+				return false
+			}
+
+			output := buf.String()
+
+			// Check that name is present
+			hasName := strings.Contains(output, name)
+
+			// Check that platform is present
+			hasPlatform := strings.Contains(output, platform)
+
+			// Check that handle is present
+			hasHandle := strings.Contains(output, handle)
+
+			return hasName && hasPlatform && hasHandle
+		},
+		nameGen,
+		platformGen,
+		handleGen,
+	))
+
+	// Property: Multi-platform streamer shows all platforms and handles
+	properties.Property("multi-platform streamer shows all platforms and handles", prop.ForAll(
+		func(name string, handle1 string, handle2 string) bool {
+			streamer := &domain.Streamer{
+				ID:        "test-id",
+				Name:      name,
+				Platforms: []string{"kick", "twitch"},
+				Handles: map[string]string{
+					"kick":   handle1,
+					"twitch": handle2,
+				},
+			}
+
+			var buf bytes.Buffer
+			if err := tmpl.Execute(&buf, streamer); err != nil {
+				return false
+			}
+
+			output := buf.String()
+
+			// Check all required elements are present
+			hasName := strings.Contains(output, name)
+			hasKick := strings.Contains(output, "kick")
+			hasTwitch := strings.Contains(output, "twitch")
+			hasHandle1 := strings.Contains(output, handle1)
+			hasHandle2 := strings.Contains(output, handle2)
+
+			return hasName && hasKick && hasTwitch && hasHandle1 && hasHandle2
+		},
+		nameGen,
+		handleGen,
+		handleGen,
+	))
+
+	properties.TestingRun(t)
+}

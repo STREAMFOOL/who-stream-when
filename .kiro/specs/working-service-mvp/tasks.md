@@ -68,43 +68,43 @@
     - Test idempotency (running twice doesn't duplicate)
     - _Requirements: 3.1_
 
-- [ ] 5. Implement search and add streamer flow
-  - [ ] 5.1 Add "Add Streamer" endpoint
+- [x] 5. Implement search and add streamer flow
+  - [x] 5.1 Add "Add Streamer" endpoint
     - Create `HandleAddStreamerFromSearch` in `PublicHandler`
     - Accept platform and handle from form POST
     - Call `KickAdapter.GetChannelInfo` to fetch streamer data
     - Create streamer via `StreamerService.GetOrCreateStreamer`
     - Redirect to streamer detail page
     - _Requirements: 5.3, 5.4_
-  - [ ] 5.2 Update search results template
+  - [x] 5.2 Update search results template
     - Add "Add to Tracker" button for each search result
     - Form posts to `/streamer/add` with platform and handle
     - Show success/error feedback
     - _Requirements: 5.1, 5.2, 5.3_
-  - [ ] 5.3 Handle empty search results
+  - [x] 5.3 Handle empty search results
     - Display helpful message when no results found
     - Suggest trying different search terms
     - _Requirements: 5.5_
-  - [ ] 5.4 Write property test for streamer info display
+  - [x] 5.4 Write property test for streamer info display
     - **Property 2: Streamer Information Display Completeness**
     - Test rendered output contains name, handle, platform
     - **Validates: Requirements 3.2, 5.2**
 
-- [ ] 6. Checkpoint - Ensure search and add work
+- [x] 6. Checkpoint - Ensure search and add work
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 7. Improve live status display
-  - [ ] 7.1 Enhance live status rendering
+- [-] 7. Improve live status display
+  - [x] 7.1 Enhance live status rendering
     - Update home page to show stream title when live
     - Display viewer count prominently
     - Add "Watch Now" button linking to stream
     - _Requirements: 3.4, 6.2_
-  - [ ] 7.2 Improve offline/unknown status display
+  - [x] 7.2 Improve offline/unknown status display
     - Show "Offline" with last seen time if available
     - Show "Status Unknown - Unable to reach Kick" when API fails
     - Add retry button for manual refresh
     - _Requirements: 3.5, 6.3_
-  - [ ] 7.3 Write property test for live status display
+  - [-] 7.3 Write property test for live status display
     - **Property 3: Live Status Display Completeness**
     - Test live status renders title, viewers, URL
     - **Validates: Requirements 3.4, 6.2**
