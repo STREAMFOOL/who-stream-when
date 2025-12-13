@@ -1,0 +1,124 @@
+# Implementation Plan
+
+- [ ] 1. Fix navigation and remove authentication
+  - [ ] 1.1 Fix template navigation links
+    - Remove any hx-* attributes from navigation links in `templates/base.html`
+    - Ensure all nav links use standard `<a href="...">` tags
+    - Remove "Login with Google" button from navigation
+    - Remove IsAuthenticated conditionals from templates
+    - _Requirements: 1.1, 1.2, 1.3, 1.4, 2.2_
+  - [ ] 1.2 Remove Google OAuth routes and handlers
+    - Remove `/login`, `/logout`, `/auth/google/callback` routes from `main.go`
+    - Remove `HandleLogin`, `HandleAuthCallback`, `HandleLogout` from `PublicHandler`
+    - Remove OAuth config initialization from `main.go`
+    - Keep SessionManager for guest programme storage (remove auth-related methods)
+    - _Requirements: 2.1_
+  - [ ] 1.3 Make all routes public
+    - Remove `RequireAuth` middleware wrapper from `/dashboard`, `/calendar`, `/follow`, `/unfollow` routes
+    - Consolidate authenticated handler functionality into public handler
+    - Remove authentication checks from handler methods
+    - _Requirements: 2.1, 2.3, 2.4, 2.5_
+  - [ ] 1.4 Write property test for public access
+    - **Property 1: Public Access Without Authentication**
+    - Test all endpoints return 2xx without auth cookies
+    - **Validates: Requirements 2.1, 2.3, 2.4, 2.5**
+
+- [ ] 2. Fix UI/template issues
+  - [ ] 2.1 Fix nested header issue in home template
+    - Review `templates/home.html` structure
+    - Ensure only one `{{template "base" .}}` call
+    - Remove any duplicate navbar HTML
+    - _Requirements: 4.1, 4.2_
+  - [ ] 2.2 Clean up streamer card styling
+    - Remove "Login to Follow" buttons from streamer cards
+    - Ensure consistent card layout without nested elements
+    - Fix "Status Unknown" display to show helpful message
+    - _Requirements: 4.1, 4.2, 4.3, 3.5_
+  - [ ] 2.3 Update streamer detail template
+    - Remove authentication-dependent UI elements
+    - Ensure platform links are clickable
+    - Add direct link to Kick channel
+    - _Requirements: 6.1, 6.4_
+  - [ ] 2.4 Write property test for visual status indicators
+    - **Property 4: Visual Status Indicator Consistency**
+    - Test CSS class application based on live status
+    - **Validates: Requirements 4.3**
+
+- [ ] 3. Checkpoint - Ensure navigation and UI work
+  - Ensure all tests pass, ask the user if questions arise.
+
+- [ ] 4. Create database seeder for Kick streamers
+  - [ ] 4.1 Create seeder package
+    - Create `internal/seed/seed.go`
+    - Implement `Seeder` struct with `StreamerRepository` and `KickAdapter` dependencies
+    - Implement `SeedPopularStreamers` method
+    - _Requirements: 3.1_
+  - [ ] 4.2 Implement seeding logic
+    - Define list of popular Kick streamers (xQc, Adin Ross, Kai Cenat, Amouranth, Trainwreckstv)
+    - For each streamer: call `KickAdapter.GetChannelInfo`, create in database if not exists
+    - Make seeding idempotent (skip existing streamers)
+    - _Requirements: 3.1, 3.2_
+  - [ ] 4.3 Integrate seeder into main.go
+    - Call seeder after database initialization
+    - Log seeding results
+    - Handle seeding errors gracefully (don't fail startup)
+    - _Requirements: 3.1_
+  - [ ] 4.4 Write unit tests for seeder
+    - Test seeding creates expected streamers
+    - Test idempotency (running twice doesn't duplicate)
+    - _Requirements: 3.1_
+
+- [ ] 5. Implement search and add streamer flow
+  - [ ] 5.1 Add "Add Streamer" endpoint
+    - Create `HandleAddStreamerFromSearch` in `PublicHandler`
+    - Accept platform and handle from form POST
+    - Call `KickAdapter.GetChannelInfo` to fetch streamer data
+    - Create streamer via `StreamerService.GetOrCreateStreamer`
+    - Redirect to streamer detail page
+    - _Requirements: 5.3, 5.4_
+  - [ ] 5.2 Update search results template
+    - Add "Add to Tracker" button for each search result
+    - Form posts to `/streamer/add` with platform and handle
+    - Show success/error feedback
+    - _Requirements: 5.1, 5.2, 5.3_
+  - [ ] 5.3 Handle empty search results
+    - Display helpful message when no results found
+    - Suggest trying different search terms
+    - _Requirements: 5.5_
+  - [ ] 5.4 Write property test for streamer info display
+    - **Property 2: Streamer Information Display Completeness**
+    - Test rendered output contains name, handle, platform
+    - **Validates: Requirements 3.2, 5.2**
+
+- [ ] 6. Checkpoint - Ensure search and add work
+  - Ensure all tests pass, ask the user if questions arise.
+
+- [ ] 7. Improve live status display
+  - [ ] 7.1 Enhance live status rendering
+    - Update home page to show stream title when live
+    - Display viewer count prominently
+    - Add "Watch Now" button linking to stream
+    - _Requirements: 3.4, 6.2_
+  - [ ] 7.2 Improve offline/unknown status display
+    - Show "Offline" with last seen time if available
+    - Show "Status Unknown - Unable to reach Kick" when API fails
+    - Add retry button for manual refresh
+    - _Requirements: 3.5, 6.3_
+  - [ ] 7.3 Write property test for live status display
+    - **Property 3: Live Status Display Completeness**
+    - Test live status renders title, viewers, URL
+    - **Validates: Requirements 3.4, 6.2**
+
+- [ ] 8. Implement streamer detail page improvements
+  - [ ] 8.1 Enhance streamer detail page
+    - Display full profile info from Kick
+    - Show live status prominently at top
+    - Add clickable link to Kick channel
+    - _Requirements: 6.1, 6.2, 6.3, 6.4_
+  - [ ] 8.2 Write property test for platform links
+    - **Property 5: Platform Link Generation**
+    - Test Kick handle generates correct URL
+    - **Validates: Requirements 6.4**
+
+- [ ] 9. Final Checkpoint - Full integration test
+  - Ensure all tests pass, ask the user if questions arise.
