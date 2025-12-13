@@ -99,33 +99,53 @@ func GenerateStateToken() (string, error) {
 	return base64.URLEncoding.EncodeToString(b), nil
 }
 
-// GuestData represents session data for unauthenticated users
+// GuestData represents session data for unauthenticated users.
+// This data is stored in HTTP-only cookies and persists during the browser session.
+// When a guest user registers, this data is migrated to database storage.
 type GuestData struct {
-	FollowedStreamerIDs []string             `json:"follows"`
-	CustomProgramme     *CustomProgrammeData `json:"programme,omitempty"`
-	CreatedAt           time.Time            `json:"created_at"`
+	// FollowedStreamerIDs: List of streamer IDs the guest user is following
+	FollowedStreamerIDs []string `json:"follows"`
+	// CustomProgramme: Optional custom programme created by the guest user
+	CustomProgramme *CustomProgrammeData `json:"programme,omitempty"`
+	// CreatedAt: When this guest session was created
+	CreatedAt time.Time `json:"created_at"`
 }
 
-// CustomProgrammeData represents a custom programme stored in session
+// CustomProgrammeData represents a custom programme stored in session.
+// This is the session-based equivalent of the database CustomProgramme model.
+// Contains a list of streamer IDs that make up the user's personalized schedule.
 type CustomProgrammeData struct {
-	StreamerIDs []string  `json:"streamer_ids"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
+	// StreamerIDs: List of streamer IDs in the custom programme
+	StreamerIDs []string `json:"streamer_ids"`
+	// CreatedAt: When the programme was created
+	CreatedAt time.Time `json:"created_at"`
+	// UpdatedAt: When the programme was last modified
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
-// SessionManager manages user sessions with secure cookies
+// SessionManager manages user sessions with secure cookies.
+// Handles both authenticated user sessions and guest user data storage.
+// Guest data is stored in HTTP-only cookies with optional compression for large datasets.
+// All cookies use SameSite=Lax for CSRF protection.
 type SessionManager struct {
-	cookieName      string
-	guestCookieName string
-	cookiePath      string
-	cookieDomain    string
-	secure          bool
-	httpOnly        bool
-	maxAge          int // in seconds
-	maxCookieSize   int // maximum cookie size in bytes
+	cookieName      string // Name of the authenticated session cookie
+	guestCookieName string // Name of the guest data cookie
+	cookiePath      string // Cookie path (always "/")
+	cookieDomain    string // Cookie domain (empty for current domain)
+	secure          bool   // Secure flag (true in production)
+	httpOnly        bool   // HttpOnly flag (always true for security)
+	maxAge          int    // Session lifetime in seconds
+	maxCookieSize   int    // Maximum cookie size in bytes (4KB limit)
 }
 
-// NewSessionManager creates a new session manager
+// NewSessionManager creates a new session manager with the specified configuration.
+// Parameters:
+//   - cookieName: Name for the authenticated session cookie
+//   - secure: Whether to set the Secure flag (true in production)
+//   - maxAge: Session lifetime in seconds
+//
+// Guest data is stored in a separate "guest_data" cookie with automatic compression
+// if the data exceeds half the maximum cookie size.
 func NewSessionManager(cookieName string, secure bool, maxAge int) *SessionManager {
 	return &SessionManager{
 		cookieName:      cookieName,
@@ -221,7 +241,9 @@ func (s *StateStore) Cleanup() {
 	}
 }
 
-// GetGuestFollows retrieves the list of followed streamer IDs from guest session
+// GetGuestFollows retrieves the list of followed streamer IDs from guest session.
+// Returns an empty slice if no guest data exists or on error.
+// This allows graceful handling of missing session data.
 func (sm *SessionManager) GetGuestFollows(r *http.Request) ([]string, error) {
 	guestData, err := sm.getGuestData(r)
 	if err != nil {
@@ -230,7 +252,10 @@ func (sm *SessionManager) GetGuestFollows(r *http.Request) ([]string, error) {
 	return guestData.FollowedStreamerIDs, nil
 }
 
-// SetGuestFollows stores the list of followed streamer IDs in guest session
+// SetGuestFollows stores the list of followed streamer IDs in guest session.
+// Preserves any existing custom programme data.
+// Automatically compresses data if it exceeds half the maximum cookie size.
+// Returns error if the serialized data exceeds the maximum cookie size.
 func (sm *SessionManager) SetGuestFollows(w http.ResponseWriter, r *http.Request, streamerIDs []string) error {
 	// Try to get existing guest data
 	guestData, err := sm.getGuestData(r)
@@ -245,7 +270,9 @@ func (sm *SessionManager) SetGuestFollows(w http.ResponseWriter, r *http.Request
 	return sm.setGuestData(w, guestData)
 }
 
-// GetGuestProgramme retrieves the custom programme from guest session
+// GetGuestProgramme retrieves the custom programme from guest session.
+// Returns nil if no custom programme exists or on error.
+// This allows checking if a guest user has created a custom programme.
 func (sm *SessionManager) GetGuestProgramme(r *http.Request) (*CustomProgrammeData, error) {
 	guestData, err := sm.getGuestData(r)
 	if err != nil {
@@ -254,7 +281,10 @@ func (sm *SessionManager) GetGuestProgramme(r *http.Request) (*CustomProgrammeDa
 	return guestData.CustomProgramme, nil
 }
 
-// SetGuestProgramme stores the custom programme in guest session
+// SetGuestProgramme stores the custom programme in guest session.
+// Preserves any existing follows data.
+// Automatically compresses data if it exceeds half the maximum cookie size.
+// Returns error if the serialized data exceeds the maximum cookie size.
 func (sm *SessionManager) SetGuestProgramme(w http.ResponseWriter, r *http.Request, programme *CustomProgrammeData) error {
 	// Try to get existing guest data
 	guestData, err := sm.getGuestData(r)
@@ -269,7 +299,8 @@ func (sm *SessionManager) SetGuestProgramme(w http.ResponseWriter, r *http.Reque
 	return sm.setGuestData(w, guestData)
 }
 
-// ClearGuestData removes all guest session data
+// ClearGuestData removes all guest session data by setting MaxAge to -1.
+// This causes the browser to delete the cookie.
 func (sm *SessionManager) ClearGuestData(w http.ResponseWriter) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     sm.guestCookieName,
@@ -284,7 +315,10 @@ func (sm *SessionManager) ClearGuestData(w http.ResponseWriter) {
 	})
 }
 
-// getGuestData retrieves and deserializes guest data from cookie
+// getGuestData retrieves and deserializes guest data from cookie.
+// Handles base64 decoding and automatic decompression if data was compressed.
+// Returns error if cookie doesn't exist or data is corrupted.
+// Gracefully handles corrupted data by returning an error rather than panicking.
 func (sm *SessionManager) getGuestData(r *http.Request) (*GuestData, error) {
 	if r == nil {
 		return nil, fmt.Errorf("request is nil")
@@ -302,6 +336,7 @@ func (sm *SessionManager) getGuestData(r *http.Request) (*GuestData, error) {
 	}
 
 	// Try to decompress (if data was compressed)
+	// Gzip files start with magic number 0x1f 0x8b
 	var jsonData []byte
 	if len(decoded) > 2 && decoded[0] == 0x1f && decoded[1] == 0x8b {
 		// Gzip magic number detected
@@ -328,7 +363,11 @@ func (sm *SessionManager) getGuestData(r *http.Request) (*GuestData, error) {
 	return &guestData, nil
 }
 
-// setGuestData serializes and stores guest data in cookie
+// setGuestData serializes and stores guest data in cookie.
+// Automatically compresses data using gzip if it exceeds half the maximum cookie size.
+// Validates that the final encoded size doesn't exceed the maximum cookie size.
+// Uses base64 URL encoding for safe cookie transmission.
+// Sets HttpOnly, Secure (in production), and SameSite=Lax flags for security.
 func (sm *SessionManager) setGuestData(w http.ResponseWriter, guestData *GuestData) error {
 	// Serialize to JSON
 	jsonData, err := json.Marshal(guestData)
@@ -337,9 +376,10 @@ func (sm *SessionManager) setGuestData(w http.ResponseWriter, guestData *GuestDa
 	}
 
 	// Check if compression is needed
+	// Compress if data is larger than half the max cookie size to leave room for overhead
 	var encoded string
 	if len(jsonData) > sm.maxCookieSize/2 {
-		// Compress data
+		// Compress data using gzip
 		var buf bytes.Buffer
 		writer := gzip.NewWriter(&buf)
 		if _, err := writer.Write(jsonData); err != nil {
@@ -354,12 +394,12 @@ func (sm *SessionManager) setGuestData(w http.ResponseWriter, guestData *GuestDa
 		encoded = base64.URLEncoding.EncodeToString(jsonData)
 	}
 
-	// Validate size
+	// Validate size - ensure encoded data fits in cookie
 	if len(encoded) > sm.maxCookieSize {
 		return fmt.Errorf("guest data exceeds maximum cookie size (%d > %d)", len(encoded), sm.maxCookieSize)
 	}
 
-	// Set cookie
+	// Set cookie with security flags
 	http.SetCookie(w, &http.Cookie{
 		Name:     sm.guestCookieName,
 		Value:    encoded,

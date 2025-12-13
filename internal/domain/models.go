@@ -119,11 +119,14 @@ type PredictedTime struct {
 	Probability float64
 }
 
-// CustomProgramme represents a user's personalized weekly schedule
+// CustomProgramme represents a user's personalized weekly schedule.
+// Registered users have custom programmes persisted in the database.
+// Guest users have custom programmes stored in session cookies.
+// When a guest registers, their custom programme is migrated to the database.
 type CustomProgramme struct {
-	ID          string
-	UserID      string
-	StreamerIDs []string
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
+	ID          string    // Unique identifier
+	UserID      string    // User ID (empty for guest programmes)
+	StreamerIDs []string  // List of streamer IDs in the programme
+	CreatedAt   time.Time // Creation timestamp
+	UpdatedAt   time.Time // Last update timestamp
 }

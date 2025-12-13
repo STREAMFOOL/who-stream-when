@@ -243,22 +243,22 @@
   - Test graceful degradation
   - _Requirements: 10.1, 10.2, 10.3, 10.4_
 
-- [ ] 13. Checkpoint - Ensure all tests pass
+- [x] 13. Checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 14. Update documentation and templates
+- [x] 14. Update documentation and templates
   - Update README with new environment variable requirements
   - Document guest user limitations and session behavior
   - Update API documentation with new endpoints
   - Add inline documentation for new services and methods
   - _Requirements: 5.4, 7.4, 9.5_
 
-- [ ] 15. Final integration testing and validation
+- [x] 15. Final integration testing and validation
   - Test complete guest user flow: search → follow → programme → register
   - Test registered user custom programme creation and management
   - Test configuration loading with various environment setups
   - Verify all correctness properties are validated by tests
   - _Requirements: All_
 
-- [ ] 16. Final Checkpoint - Ensure all tests pass
+- [x] 16. Final Checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.

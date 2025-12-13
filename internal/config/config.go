@@ -1,3 +1,14 @@
+// Package config manages application configuration loaded from environment variables.
+//
+// Configuration includes:
+// - Database connection settings
+// - OAuth credentials
+// - Platform API keys
+// - Server settings
+// - Feature flags for platform enablement
+//
+// All configuration is loaded from environment variables with sensible defaults.
+// Required variables will cause the application to fail fast with clear error messages.
 package config
 
 import (
@@ -8,13 +19,15 @@ import (
 	"strings"
 )
 
-// FeatureFlags represents enabled platform features using bit flags
+// FeatureFlags represents enabled platform features using bit flags.
+// This allows efficient storage and checking of which platforms are enabled.
+// Use IsEnabled, Enable, and Disable methods to interact with flags.
 type FeatureFlags uint8
 
 const (
-	FeatureKick    FeatureFlags = 1 << iota // 0b001
-	FeatureYouTube                          // 0b010
-	FeatureTwitch                           // 0b100
+	FeatureKick    FeatureFlags = 1 << iota // 0b001 - Kick platform
+	FeatureYouTube                          // 0b010 - YouTube platform
+	FeatureTwitch                           // 0b100 - Twitch platform
 )
 
 // IsEnabled checks if a specific platform feature is enabled
@@ -47,17 +60,28 @@ func (f FeatureFlags) GetEnabledPlatforms() []string {
 	return platforms
 }
 
-// Config holds all application configuration loaded from environment variables
+// Config holds all application configuration loaded from environment variables.
+// Configuration is validated on load to ensure all required values are present.
+// Secrets are masked when logged to prevent accidental exposure.
 type Config struct {
 	// Database configuration
+	// DatabasePath: Path to SQLite database file (default: ./data/who-live-when.db)
 	DatabasePath string
 
-	// OAuth configuration
+	// OAuth configuration (required)
+	// GoogleClientID: OAuth client ID from Google Cloud Console
+	// GoogleClientSecret: OAuth client secret from Google Cloud Console
+	// GoogleRedirectURL: Callback URL for OAuth flow (default: http://localhost:8080/auth/google/callback)
 	GoogleClientID     string
 	GoogleClientSecret string
 	GoogleRedirectURL  string
 
-	// Platform API keys
+	// Platform API keys (optional - enables platform-specific features)
+	// YouTubeAPIKey: YouTube Data API v3 key
+	// TwitchClientID: Twitch application client ID
+	// TwitchSecret: Twitch application secret
+	// KickClientID: Kick application client ID
+	// KickSecret: Kick application secret
 	YouTubeAPIKey  string
 	TwitchClientID string
 	TwitchSecret   string
@@ -65,11 +89,15 @@ type Config struct {
 	KickSecret     string
 
 	// Server configuration
+	// ServerPort: Port to listen on (default: 8080)
+	// SessionSecret: Secret key for session encryption (default: "session")
+	// SessionDuration: Session lifetime in seconds (default: 604800 = 7 days)
 	ServerPort      string
 	SessionSecret   string
 	SessionDuration int
 
-	// Feature flags
+	// Feature flags control which platforms are enabled
+	// Use FeatureFlags.IsEnabled() to check if a platform is available
 	FeatureFlags FeatureFlags
 }
 

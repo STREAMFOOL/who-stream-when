@@ -104,6 +104,143 @@ Cookie: session_id=abc123...
 
 ---
 
+### GET /search
+
+**Description**: Dedicated search page for discovering streamers across all platforms. Accessible to both registered and unregistered users.
+
+**Response**: HTML page with:
+- Search input field
+- Platform filter buttons (Kick, YouTube, Twitch)
+- Visual indicators for enabled/disabled platforms
+- Search results grid with streamer cards
+- "Add Streamer" option for results not in system
+
+**Features**:
+- Disabled platforms shown as greyed out with "Coming Soon" badge
+- Only queries enabled platforms based on feature flags
+- Shows platform information on each result
+
+**Example**:
+```
+GET /search HTTP/1.1
+Host: localhost:8080
+```
+
+---
+
+## Universal Routes (Guest & Authenticated)
+
+These routes are accessible to both registered and unregistered users. Guest data is stored in session cookies.
+
+### POST /search
+
+**Description**: Search for streamers across enabled platforms.
+
+**Request Body** (form-encoded):
+- `query` (string): Search term (streamer name or handle)
+- `platform` (optional): Filter by specific platform (kick, youtube, twitch)
+
+**Response**: HTML fragment with search results (HTMX-compatible)
+- List of matching streamers
+- Platform indicators
+- Follow buttons
+- "Add Streamer" option for new streamers
+
+**Behavior**:
+- Only queries platforms enabled via feature flags
+- Returns error if disabled platform is selected
+- Aggregates results from multiple platforms
+
+**Example**:
+```
+POST /search HTTP/1.1
+Host: localhost:8080
+Content-Type: application/x-www-form-urlencoded
+
+query=shroud&platform=kick
+```
+
+---
+
+### POST /follow/:id
+
+**Description**: Follow a streamer. Works for both registered and guest users.
+
+**Parameters**:
+- `id` (path): Streamer UUID
+
+**Storage**:
+- **Registered users**: Persisted in database
+- **Guest users**: Stored in session cookie (cleared on browser close)
+
+**Response**: 
+- Success: HTML fragment with updated follow status (HTMX-compatible)
+- Error: 404 if streamer not found, 400 if platform disabled, 500 on server error
+
+**Side Effects**:
+- Adds streamer to user's followed list
+- Begins activity tracking for heatmap generation
+- Makes streamer discoverable to other users
+
+**Example**:
+```
+POST /follow/123e4567-e89b-12d3-a456-426614174000 HTTP/1.1
+Host: localhost:8080
+```
+
+---
+
+### POST /unfollow/:id
+
+**Description**: Unfollow a streamer. Works for both registered and guest users.
+
+**Parameters**:
+- `id` (path): Streamer UUID
+
+**Storage**:
+- **Registered users**: Removed from database
+- **Guest users**: Removed from session cookie
+
+**Response**: 
+- Success: HTML fragment with updated follow status (HTMX-compatible)
+- Error: 404 if streamer not found, 500 on server error
+
+**Example**:
+```
+POST /unfollow/123e4567-e89b-12d3-a456-426614174000 HTTP/1.1
+Host: localhost:8080
+```
+
+---
+
+### GET /programme
+
+**Description**: View the current programme (custom or global). Accessible to all users.
+
+**Query Parameters**:
+- `week` (optional): ISO 8601 date string for week start (defaults to current week)
+
+**Response**: HTML page with:
+- 24-hour x 7-day calendar grid
+- Predicted streaming times with probability indicators
+- Week navigation (previous/next)
+- Streamer names in time slots
+- Indicator showing if custom or global programme is displayed
+
+**Behavior**:
+- **Registered users with custom programme**: Shows custom programme
+- **Registered users without custom programme**: Shows global programme
+- **Guest users with custom programme**: Shows custom programme (session-based)
+- **Guest users without custom programme**: Shows global programme
+
+**Example**:
+```
+GET /programme?week=2024-01-07 HTTP/1.1
+Host: localhost:8080
+```
+
+---
+
 ## Authenticated Routes
 
 These routes require a valid session cookie. Unauthenticated requests will be redirected to `/login`.
@@ -227,6 +364,147 @@ Cookie: session_id=abc123...
 
 ---
 
+### GET /programme/manage
+
+**Description**: Custom programme management interface for creating and editing personalized schedules.
+
+**Authentication**: Required
+
+**Response**: HTML page with:
+- Current custom programme status (or indication of global programme)
+- List of followed streamers with add/remove options
+- "Clear Programme" button to revert to global
+- Calendar preview of custom programme
+- Session-based notice if applicable
+
+**Example**:
+```
+GET /programme/manage HTTP/1.1
+Host: localhost:8080
+Cookie: session_id=abc123...
+```
+
+---
+
+### POST /programme/create
+
+**Description**: Create a new custom programme with selected streamers.
+
+**Authentication**: Required
+
+**Request Body** (form-encoded or JSON):
+- `streamer_ids` (array): List of streamer UUIDs to include in programme
+
+**Response**: 
+- Success: Redirect to `/programme/manage` or JSON response with created programme
+- Error: 400 if invalid streamer IDs, 500 on server error
+
+**Side Effects**:
+- Creates custom programme in database
+- Replaces any existing custom programme
+- Calendar view switches to custom programme
+
+**Example**:
+```
+POST /programme/create HTTP/1.1
+Host: localhost:8080
+Cookie: session_id=abc123...
+Content-Type: application/x-www-form-urlencoded
+
+streamer_ids=123e4567-e89b-12d3-a456-426614174000&streamer_ids=223e4567-e89b-12d3-a456-426614174001
+```
+
+---
+
+### POST /programme/update
+
+**Description**: Update an existing custom programme with new streamer selections.
+
+**Authentication**: Required
+
+**Request Body** (form-encoded or JSON):
+- `streamer_ids` (array): Updated list of streamer UUIDs
+
+**Response**: 
+- Success: Redirect to `/programme/manage` or JSON response with updated programme
+- Error: 400 if invalid streamer IDs, 404 if no custom programme exists, 500 on server error
+
+**Side Effects**:
+- Updates custom programme in database
+- Calendar view refreshes with new selections
+
+**Example**:
+```
+POST /programme/update HTTP/1.1
+Host: localhost:8080
+Cookie: session_id=abc123...
+Content-Type: application/x-www-form-urlencoded
+
+streamer_ids=123e4567-e89b-12d3-a456-426614174000
+```
+
+---
+
+### POST /programme/delete
+
+**Description**: Delete custom programme and revert to global programme view.
+
+**Authentication**: Required
+
+**Response**: 
+- Success: Redirect to `/programme` or JSON response confirming deletion
+- Error: 404 if no custom programme exists, 500 on server error
+
+**Side Effects**:
+- Deletes custom programme from database
+- Calendar view reverts to global programme
+- User's followed streamers remain unchanged
+
+**Example**:
+```
+POST /programme/delete HTTP/1.1
+Host: localhost:8080
+Cookie: session_id=abc123...
+```
+
+---
+
+## Guest User Session Storage
+
+Guest users (unregistered visitors) can use the application with data stored in browser session cookies:
+
+### Session Data
+
+Guest sessions store:
+- **Followed streamers**: List of streamer IDs
+- **Custom programme**: Personalized streamer selection
+
+### Session Persistence
+
+- **Duration**: Configurable via `SESSION_DURATION` environment variable (default: 7 days)
+- **Storage**: HTTP-only, secure cookies (SameSite=Lax)
+- **Scope**: Per-browser session (cleared on browser close or session expiry)
+- **Cross-device**: Not synchronized across devices
+
+### Session Limitations
+
+- Data is cleared when browser closes or session expires
+- No backup or recovery mechanism
+- Limited to cookie size constraints (~4KB)
+- Not accessible across different browsers or devices
+
+### Guest to Registered Migration
+
+When a guest user registers or logs in:
+1. All session data is automatically migrated to database
+2. Follows and custom programme are preserved
+3. Session cookies are cleared
+4. User gains persistent storage and cross-device access
+
+**Migration Endpoint**: Automatic on successful OAuth callback
+
+---
+
 ## Error Responses
 
 All endpoints may return the following error responses:
@@ -277,6 +555,57 @@ Currently, no rate limiting is implemented. Future versions may add:
 ### Heatmap Cache
 - **Storage**: Database (regenerated on demand)
 - **Invalidation**: Regenerated when new activity data is recorded
+
+---
+
+## Feature Flags
+
+Feature flags control which streaming platforms are enabled at runtime:
+
+### Configuration
+
+Feature flags are configured via the `FEATURE_FLAGS` environment variable:
+
+```bash
+# Default: only Kick enabled
+export FEATURE_FLAGS="kick"
+
+# Enable multiple platforms
+export FEATURE_FLAGS="kick,youtube,twitch"
+
+# Enable all platforms
+export FEATURE_FLAGS="kick,youtube,twitch"
+```
+
+### Enabled Platforms
+
+- **Kick**: Enabled by default
+- **YouTube**: Disabled by default (enable via `FEATURE_FLAGS`)
+- **Twitch**: Disabled by default (enable via `FEATURE_FLAGS`)
+
+### UI Behavior
+
+- **Enabled platforms**: Fully functional, searchable, followable
+- **Disabled platforms**: Greyed out in UI with "Coming Soon" badge
+- **Search**: Only queries enabled platforms
+- **Follow**: Prevents following streamers from disabled platforms with error message
+
+### API Behavior
+
+- Search requests to disabled platforms return 400 Bad Request
+- Follow requests for disabled platform streamers return 400 Bad Request
+- Error messages indicate which platforms are available
+
+### Application Startup
+
+On startup, the application logs which platforms are enabled:
+
+```
+Feature Flags - Enabled Platforms: [kick youtube]
+  - Kick: true
+  - YouTube: true
+  - Twitch: false
+```
 
 ---
 

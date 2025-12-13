@@ -36,11 +36,46 @@ go build -o server ./cmd/server
 
 Set the following environment variables:
 
+#### Required Variables
+
 ```bash
 export GOOGLE_CLIENT_ID="your-google-client-id"
 export GOOGLE_CLIENT_SECRET="your-google-client-secret"
-export GOOGLE_REDIRECT_URL="http://localhost:8080/auth/google/callback"
 ```
+
+#### Optional Variables
+
+```bash
+# OAuth callback URL (defaults to http://localhost:8080/auth/google/callback)
+export GOOGLE_REDIRECT_URL="http://localhost:8080/auth/google/callback"
+
+# Database path (defaults to ./data/who-live-when.db)
+export DATABASE_PATH="./data/who-live-when.db"
+
+# Server port (defaults to 8080)
+export SERVER_PORT="8080"
+
+# Session configuration (defaults to 604800 seconds = 7 days)
+export SESSION_DURATION="604800"
+export SESSION_SECRET="your-session-secret"
+
+# Platform API credentials (optional - enables platform-specific features)
+export KICK_CLIENT_ID="your-kick-client-id"
+export KICK_CLIENT_SECRET="your-kick-client-secret"
+export YOUTUBE_API_KEY="your-youtube-api-key"
+export TWITCH_CLIENT_ID="your-twitch-client-id"
+export TWITCH_CLIENT_SECRET="your-twitch-client-secret"
+
+# Feature flags (comma-separated, defaults to "kick")
+# Controls which platforms are enabled: kick, youtube, twitch
+export FEATURE_FLAGS="kick,youtube,twitch"
+```
+
+#### Configuration Notes
+
+- **Feature Flags**: By default, only Kick is enabled. Set `FEATURE_FLAGS` to enable additional platforms (e.g., `"kick,youtube,twitch"`)
+- **Session Duration**: Specified in seconds. Guest user data persists for this duration
+- **Platform API Keys**: YouTube and Twitch are optional. If not provided, those platforms will have limited functionality
 
 ### Running
 
@@ -50,6 +85,39 @@ export GOOGLE_REDIRECT_URL="http://localhost:8080/auth/google/callback"
 ```
 
 The server will start on `http://localhost:8080`
+
+## Guest User Features
+
+The application supports both registered and unregistered (guest) users:
+
+### Guest Users
+
+Guest users can:
+- Search for streamers across enabled platforms
+- Follow streamers (stored in browser session)
+- Create custom programmes (stored in browser session)
+- View the global programme and live status
+
+**Limitations**:
+- Data persists only during the browser session (cleared when browser closes)
+- Session duration is configurable via `SESSION_DURATION` environment variable
+- No cross-device synchronization
+
+### Registered Users
+
+Registered users (via Google OAuth) can:
+- All guest features plus persistent storage
+- Custom programmes saved to database
+- Follows persisted across sessions and devices
+- Automatic migration of guest data upon registration
+
+### Guest Data Migration
+
+When a guest user registers or logs in:
+1. All session-based follows are migrated to the database
+2. Custom programme is migrated to the database
+3. Session data is cleared
+4. User can continue with full account features
 
 ## Architecture
 
@@ -145,19 +213,28 @@ rm data/who-live-when.db
 
 ### Public Routes
 
-- `GET /` - Home page with most viewed streamers
+- `GET /` - Home page with most viewed streamers (global programme)
+- `GET /search` - Dedicated search page for discovering streamers (accessible to all users)
 - `GET /streamer/:id` - Streamer detail page with heatmap
 - `GET /login` - Initiate Google OAuth flow
 - `GET /auth/google/callback` - OAuth callback handler
 - `GET /logout` - End user session
 
+### Universal Routes (Guest & Authenticated)
+
+- `POST /search` - Search for streamers across enabled platforms
+- `POST /follow/:id` - Follow a streamer (database for registered, session for guests)
+- `POST /unfollow/:id` - Unfollow a streamer
+- `GET /programme` - View custom or global programme
+
 ### Authenticated Routes
 
-- `GET /dashboard` - User dashboard with followed streamers
-- `POST /search` - Search for streamers across platforms
-- `POST /follow/:id` - Follow a streamer
-- `POST /unfollow/:id` - Unfollow a streamer
-- `GET /calendar` - Weekly TV programme calendar
+- `GET /dashboard` - User dashboard with followed streamers and custom programme
+- `GET /programme/manage` - Custom programme management interface
+- `POST /programme/create` - Create a custom programme
+- `POST /programme/update` - Update custom programme streamers
+- `POST /programme/delete` - Delete custom programme and revert to global
+- `GET /calendar` - Weekly TV programme calendar (custom or global)
 
 ## How It Works
 
