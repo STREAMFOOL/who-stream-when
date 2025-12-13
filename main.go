@@ -15,6 +15,7 @@ import (
 	"who-live-when/internal/domain"
 	"who-live-when/internal/handler"
 	"who-live-when/internal/repository/sqlite"
+	"who-live-when/internal/seed"
 	"who-live-when/internal/service"
 
 	"github.com/joho/godotenv"
@@ -60,6 +61,16 @@ func main() {
 		log.Printf("WARNING: Kick API connection check failed: %v", err)
 	} else {
 		log.Println("Kick API connection verified")
+	}
+
+	// Seed database with popular Kick streamers
+	seeder := seed.NewSeeder(streamerRepo, kickAdapter)
+	seedResult, err := seeder.SeedPopularStreamers(context.Background())
+	if err != nil {
+		log.Printf("WARNING: Seeding failed: %v", err)
+	} else {
+		log.Printf("Seeding complete: %d created, %d skipped, %d failed",
+			len(seedResult.Created), len(seedResult.Skipped), len(seedResult.Failed))
 	}
 
 	platformAdapters := map[string]domain.PlatformAdapter{

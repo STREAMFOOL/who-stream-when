@@ -44,26 +44,26 @@
     - Test CSS class application based on live status
     - **Validates: Requirements 4.3**
 
-- [ ] 3. Checkpoint - Ensure navigation and UI work
+- [x] 3. Checkpoint - Ensure navigation and UI work
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 4. Create database seeder for Kick streamers
-  - [ ] 4.1 Create seeder package
+- [x] 4. Create database seeder for Kick streamers
+  - [x] 4.1 Create seeder package
     - Create `internal/seed/seed.go`
     - Implement `Seeder` struct with `StreamerRepository` and `KickAdapter` dependencies
     - Implement `SeedPopularStreamers` method
     - _Requirements: 3.1_
-  - [ ] 4.2 Implement seeding logic
+  - [x] 4.2 Implement seeding logic
     - Define list of popular Kick streamers (xQc, Adin Ross, Kai Cenat, Amouranth, Trainwreckstv)
     - For each streamer: call `KickAdapter.GetChannelInfo`, create in database if not exists
     - Make seeding idempotent (skip existing streamers)
     - _Requirements: 3.1, 3.2_
-  - [ ] 4.3 Integrate seeder into main.go
+  - [x] 4.3 Integrate seeder into main.go
     - Call seeder after database initialization
     - Log seeding results
     - Handle seeding errors gracefully (don't fail startup)
     - _Requirements: 3.1_
-  - [ ] 4.4 Write unit tests for seeder
+  - [x] 4.4 Write unit tests for seeder
     - Test seeding creates expected streamers
     - Test idempotency (running twice doesn't duplicate)
     - _Requirements: 3.1_
