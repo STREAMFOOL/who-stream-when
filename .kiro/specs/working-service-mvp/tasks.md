@@ -93,7 +93,7 @@
 - [x] 6. Checkpoint - Ensure search and add work
   - Ensure all tests pass, ask the user if questions arise.
 
-- [-] 7. Improve live status display
+- [x] 7. Improve live status display
   - [x] 7.1 Enhance live status rendering
     - Update home page to show stream title when live
     - Display viewer count prominently
@@ -104,18 +104,18 @@
     - Show "Status Unknown - Unable to reach Kick" when API fails
     - Add retry button for manual refresh
     - _Requirements: 3.5, 6.3_
-  - [-] 7.3 Write property test for live status display
+  - [x] 7.3 Write property test for live status display
     - **Property 3: Live Status Display Completeness**
     - Test live status renders title, viewers, URL
     - **Validates: Requirements 3.4, 6.2**
 
-- [ ] 8. Implement streamer detail page improvements
-  - [ ] 8.1 Enhance streamer detail page
+- [x] 8. Implement streamer detail page improvements
+  - [x] 8.1 Enhance streamer detail page
     - Display full profile info from Kick
     - Show live status prominently at top
     - Add clickable link to Kick channel
     - _Requirements: 6.1, 6.2, 6.3, 6.4_
-  - [ ] 8.2 Write property test for platform links
+  - [x] 8.2 Write property test for platform links
     - **Property 5: Platform Link Generation**
     - Test Kick handle generates correct URL
     - **Validates: Requirements 6.4**

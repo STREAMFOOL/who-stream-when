@@ -628,3 +628,60 @@ a:hover {
     color: #92400e;
     margin-bottom: 0.75rem;
 }
+
+
+/* Streamer Profile Card */
+.streamer-profile-card {
+    background: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.streamer-bio {
+    color: #6b7280;
+    margin-top: 1rem;
+    line-height: 1.6;
+    font-size: 0.95rem;
+}
+
+/* Platform Links List */
+.platform-links-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.platform-link-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    background: #f9fafb;
+    border-radius: 8px;
+    transition: background 0.2s;
+}
+
+.platform-link-item:hover {
+    background: #f3f4f6;
+}
+
+.platform-icon {
+    font-size: 1.25rem;
+}
+
+.platform-link-item strong {
+    min-width: 70px;
+    color: #374151;
+}
+
+.platform-link-item .platform-link {
+    color: #6366f1;
+    font-weight: 500;
+    word-break: break-all;
+}
+
+.platform-link-item .platform-link:hover {
+    text-decoration: underline;
+}

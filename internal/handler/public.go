@@ -267,6 +267,20 @@ func (h *PublicHandler) HandleStreamerDetail(w http.ResponseWriter, r *http.Requ
 		// Continue without heatmap
 	}
 
+	// Fetch channel info from Kick for additional profile data (bio, etc.)
+	var channelInfo *domain.PlatformChannelInfo
+	if kickHandle, ok := streamer.Handles["kick"]; ok && kickHandle != "" {
+		channelInfo, err = h.kickAdapter.GetChannelInfo(ctx, kickHandle)
+		if err != nil {
+			h.logger.Warn("Failed to get Kick channel info", map[string]interface{}{
+				"streamer_id": streamerID,
+				"handle":      kickHandle,
+				"error":       err.Error(),
+			})
+			// Continue without channel info
+		}
+	}
+
 	// Check if user is authenticated
 	userID, _ := h.sessionManager.GetSession(r)
 	isAuthenticated := userID != ""
@@ -289,6 +303,7 @@ func (h *PublicHandler) HandleStreamerDetail(w http.ResponseWriter, r *http.Requ
 		"Streamer":        streamer,
 		"LiveStatus":      liveStatus,
 		"Heatmap":         heatmap,
+		"ChannelInfo":     channelInfo,
 		"IsAuthenticated": isAuthenticated,
 		"IsFollowing":     isFollowing,
 	}

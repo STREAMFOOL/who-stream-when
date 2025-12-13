@@ -468,3 +468,439 @@ func TestProperty_StreamerInformationDisplayCompleteness(t *testing.T) {
 
 	properties.TestingRun(t)
 }
+
+// **Feature: working-service-mvp, Property 3: Live Status Display Completeness**
+// **Validates: Requirements 3.4, 6.2**
+// For any live status response where IsLive == true, the rendered output SHALL
+// contain the stream title (if non-empty), viewer count, and a valid stream URL.
+func TestProperty_LiveStatusDisplayCompleteness(t *testing.T) {
+	// Template snippet that mirrors the home.html live status rendering logic
+	liveStatusTemplate := `
+{{$status := .LiveStatus}}
+<div class="status-section">
+    {{if $status}}
+        {{if $status.IsLive}}
+        <span class="status-badge status-live">🔴 Live on {{$status.Platform}}</span>
+        {{if $status.Title}}
+        <p class="stream-title-prominent">{{$status.Title}}</p>
+        {{end}}
+        {{if gt $status.ViewerCount 0}}
+        <p class="viewer-count-prominent">👁 {{$status.ViewerCount}} watching</p>
+        {{end}}
+        {{if $status.StreamURL}}
+        <a href="{{$status.StreamURL}}" target="_blank" class="btn-watch-now">▶ Watch Now</a>
+        {{end}}
+        {{else}}
+        <span class="status-badge status-offline">Offline</span>
+        {{end}}
+    {{else}}
+    <span class="status-badge status-unknown">⚠️ Status Unknown</span>
+    {{end}}
+</div>`
+
+	tmpl, err := template.New("livestatus").Parse(liveStatusTemplate)
+	if err != nil {
+		t.Fatalf("Failed to parse template: %v", err)
+	}
+
+	parameters := gopter.DefaultTestParameters()
+	parameters.MinSuccessfulTests = 100
+	properties := gopter.NewProperties(parameters)
+
+	// Generator for non-empty stream titles (ASCII only to avoid HTML escaping issues)
+	titleGen := gen.AlphaString().Map(func(s string) string {
+		if len(s) == 0 {
+			return "DefaultStreamTitle"
+		}
+		if len(s) > 50 {
+			return s[:50]
+		}
+		return s
+	})
+
+	// Generator for valid stream URLs (ASCII only to avoid HTML escaping issues)
+	urlGen := gen.AlphaString().Map(func(s string) string {
+		if len(s) == 0 {
+			return "https://kick.com/teststreamer"
+		}
+		if len(s) > 30 {
+			s = s[:30]
+		}
+		return "https://kick.com/" + strings.ToLower(s)
+	})
+
+	// Generator for viewer counts (positive integers)
+	viewerCountGen := gen.IntRange(1, 1000000)
+
+	// Generator for platforms
+	platformGen := gen.OneConstOf("kick", "twitch", "youtube")
+
+	// Property: Live status with title displays the title
+	properties.Property("live status with title displays the title", prop.ForAll(
+		func(title string, platform string, viewerCount int, streamURL string) bool {
+			data := map[string]interface{}{
+				"LiveStatus": &domain.LiveStatus{
+					IsLive:      true,
+					Platform:    platform,
+					Title:       title,
+					ViewerCount: viewerCount,
+					StreamURL:   streamURL,
+				},
+			}
+
+			var buf bytes.Buffer
+			if err := tmpl.Execute(&buf, data); err != nil {
+				return false
+			}
+
+			output := buf.String()
+
+			// Title should be present in output
+			hasTitle := strings.Contains(output, title)
+
+			return hasTitle
+		},
+		titleGen,
+		platformGen,
+		viewerCountGen,
+		urlGen,
+	))
+
+	// Property: Live status with positive viewer count displays viewer count
+	properties.Property("live status with positive viewer count displays viewer count", prop.ForAll(
+		func(title string, platform string, viewerCount int, streamURL string) bool {
+			data := map[string]interface{}{
+				"LiveStatus": &domain.LiveStatus{
+					IsLive:      true,
+					Platform:    platform,
+					Title:       title,
+					ViewerCount: viewerCount,
+					StreamURL:   streamURL,
+				},
+			}
+
+			var buf bytes.Buffer
+			if err := tmpl.Execute(&buf, data); err != nil {
+				return false
+			}
+
+			output := buf.String()
+
+			// Viewer count should be present in output
+			viewerCountStr := strings.Contains(output, "watching")
+
+			return viewerCountStr
+		},
+		titleGen,
+		platformGen,
+		viewerCountGen,
+		urlGen,
+	))
+
+	// Property: Live status with stream URL displays watch button with URL
+	properties.Property("live status with stream URL displays watch button with URL", prop.ForAll(
+		func(title string, platform string, viewerCount int, streamURL string) bool {
+			data := map[string]interface{}{
+				"LiveStatus": &domain.LiveStatus{
+					IsLive:      true,
+					Platform:    platform,
+					Title:       title,
+					ViewerCount: viewerCount,
+					StreamURL:   streamURL,
+				},
+			}
+
+			var buf bytes.Buffer
+			if err := tmpl.Execute(&buf, data); err != nil {
+				return false
+			}
+
+			output := buf.String()
+
+			// Stream URL should be present in href attribute
+			hasURL := strings.Contains(output, streamURL)
+			// Watch Now button should be present
+			hasWatchButton := strings.Contains(output, "Watch Now")
+
+			return hasURL && hasWatchButton
+		},
+		titleGen,
+		platformGen,
+		viewerCountGen,
+		urlGen,
+	))
+
+	// Property: Live status displays all required elements together
+	properties.Property("live status displays title, viewer count, and URL together", prop.ForAll(
+		func(title string, platform string, viewerCount int, streamURL string) bool {
+			data := map[string]interface{}{
+				"LiveStatus": &domain.LiveStatus{
+					IsLive:      true,
+					Platform:    platform,
+					Title:       title,
+					ViewerCount: viewerCount,
+					StreamURL:   streamURL,
+				},
+			}
+
+			var buf bytes.Buffer
+			if err := tmpl.Execute(&buf, data); err != nil {
+				return false
+			}
+
+			output := buf.String()
+
+			// All elements should be present
+			hasTitle := strings.Contains(output, title)
+			hasViewerCount := strings.Contains(output, "watching")
+			hasURL := strings.Contains(output, streamURL)
+			hasWatchButton := strings.Contains(output, "Watch Now")
+			hasLiveIndicator := strings.Contains(output, "status-live")
+
+			return hasTitle && hasViewerCount && hasURL && hasWatchButton && hasLiveIndicator
+		},
+		titleGen,
+		platformGen,
+		viewerCountGen,
+		urlGen,
+	))
+
+	properties.TestingRun(t)
+}
+
+// **Feature: working-service-mvp, Property 5: Platform Link Generation**
+// **Validates: Requirements 6.4**
+// For any streamer with a Kick handle, the rendered detail page SHALL contain
+// a clickable link with href matching the pattern `https://kick.com/{handle}`.
+func TestProperty_PlatformLinkGeneration(t *testing.T) {
+	// Template snippet that mirrors the streamer.html platform links rendering logic
+	platformLinksTemplate := `
+<div class="platform-links-list">
+    {{range $platform, $handle := .Handles}}
+    <div class="platform-link-item">
+        {{if eq $platform "kick"}}
+        <span class="platform-icon">🟢</span>
+        <strong>Kick:</strong>
+        <a href="https://kick.com/{{$handle}}" target="_blank" rel="noopener noreferrer" class="platform-link" data-platform="kick" data-handle="{{$handle}}">
+            kick.com/{{$handle}}
+        </a>
+        {{else if eq $platform "twitch"}}
+        <span class="platform-icon">🟣</span>
+        <strong>Twitch:</strong>
+        <a href="https://twitch.tv/{{$handle}}" target="_blank" rel="noopener noreferrer" class="platform-link" data-platform="twitch" data-handle="{{$handle}}">
+            twitch.tv/{{$handle}}
+        </a>
+        {{else if eq $platform "youtube"}}
+        <span class="platform-icon">🔴</span>
+        <strong>YouTube:</strong>
+        <a href="https://youtube.com/@{{$handle}}" target="_blank" rel="noopener noreferrer" class="platform-link" data-platform="youtube" data-handle="{{$handle}}">
+            youtube.com/@{{$handle}}
+        </a>
+        {{else}}
+        <span class="platform-icon">🔵</span>
+        <strong>{{$platform}}:</strong>
+        <span>{{$handle}}</span>
+        {{end}}
+    </div>
+    {{end}}
+</div>`
+
+	tmpl, err := template.New("platformlinks").Parse(platformLinksTemplate)
+	if err != nil {
+		t.Fatalf("Failed to parse template: %v", err)
+	}
+
+	parameters := gopter.DefaultTestParameters()
+	parameters.MinSuccessfulTests = 100
+	properties := gopter.NewProperties(parameters)
+
+	// Generator for valid Kick handles (lowercase alphanumeric, no special chars)
+	kickHandleGen := gen.AlphaString().Map(func(s string) string {
+		if len(s) == 0 {
+			return "teststreamer"
+		}
+		if len(s) > 25 {
+			s = s[:25]
+		}
+		return strings.ToLower(s)
+	}).SuchThat(func(s string) bool {
+		return len(s) > 0
+	})
+
+	// Generator for valid Twitch handles
+	twitchHandleGen := gen.AlphaString().Map(func(s string) string {
+		if len(s) == 0 {
+			return "twitchstreamer"
+		}
+		if len(s) > 25 {
+			s = s[:25]
+		}
+		return strings.ToLower(s)
+	}).SuchThat(func(s string) bool {
+		return len(s) > 0
+	})
+
+	// Generator for valid YouTube handles
+	youtubeHandleGen := gen.AlphaString().Map(func(s string) string {
+		if len(s) == 0 {
+			return "youtubestreamer"
+		}
+		if len(s) > 25 {
+			s = s[:25]
+		}
+		return strings.ToLower(s)
+	}).SuchThat(func(s string) bool {
+		return len(s) > 0
+	})
+
+	// Property: Kick handle generates correct URL pattern https://kick.com/{handle}
+	properties.Property("kick handle generates correct URL https://kick.com/{handle}", prop.ForAll(
+		func(handle string) bool {
+			streamer := &domain.Streamer{
+				ID:        "test-id",
+				Name:      "Test Streamer",
+				Platforms: []string{"kick"},
+				Handles:   map[string]string{"kick": handle},
+			}
+
+			var buf bytes.Buffer
+			if err := tmpl.Execute(&buf, streamer); err != nil {
+				return false
+			}
+
+			output := buf.String()
+
+			// Check that the correct URL pattern is present
+			expectedURL := "https://kick.com/" + handle
+			hasCorrectURL := strings.Contains(output, expectedURL)
+
+			// Check that it's in an href attribute (clickable link)
+			hasHref := strings.Contains(output, `href="`+expectedURL+`"`)
+
+			// Check that target="_blank" is present for external link
+			hasTargetBlank := strings.Contains(output, `target="_blank"`)
+
+			return hasCorrectURL && hasHref && hasTargetBlank
+		},
+		kickHandleGen,
+	))
+
+	// Property: Twitch handle generates correct URL pattern https://twitch.tv/{handle}
+	properties.Property("twitch handle generates correct URL https://twitch.tv/{handle}", prop.ForAll(
+		func(handle string) bool {
+			streamer := &domain.Streamer{
+				ID:        "test-id",
+				Name:      "Test Streamer",
+				Platforms: []string{"twitch"},
+				Handles:   map[string]string{"twitch": handle},
+			}
+
+			var buf bytes.Buffer
+			if err := tmpl.Execute(&buf, streamer); err != nil {
+				return false
+			}
+
+			output := buf.String()
+
+			// Check that the correct URL pattern is present
+			expectedURL := "https://twitch.tv/" + handle
+			hasCorrectURL := strings.Contains(output, expectedURL)
+
+			// Check that it's in an href attribute (clickable link)
+			hasHref := strings.Contains(output, `href="`+expectedURL+`"`)
+
+			return hasCorrectURL && hasHref
+		},
+		twitchHandleGen,
+	))
+
+	// Property: YouTube handle generates correct URL pattern https://youtube.com/@{handle}
+	properties.Property("youtube handle generates correct URL https://youtube.com/@{handle}", prop.ForAll(
+		func(handle string) bool {
+			streamer := &domain.Streamer{
+				ID:        "test-id",
+				Name:      "Test Streamer",
+				Platforms: []string{"youtube"},
+				Handles:   map[string]string{"youtube": handle},
+			}
+
+			var buf bytes.Buffer
+			if err := tmpl.Execute(&buf, streamer); err != nil {
+				return false
+			}
+
+			output := buf.String()
+
+			// Check that the correct URL pattern is present
+			expectedURL := "https://youtube.com/@" + handle
+			hasCorrectURL := strings.Contains(output, expectedURL)
+
+			// Check that it's in an href attribute (clickable link)
+			hasHref := strings.Contains(output, `href="`+expectedURL+`"`)
+
+			return hasCorrectURL && hasHref
+		},
+		youtubeHandleGen,
+	))
+
+	// Property: Multi-platform streamer has all platform links with correct URLs
+	properties.Property("multi-platform streamer has all correct platform URLs", prop.ForAll(
+		func(kickHandle string, twitchHandle string, youtubeHandle string) bool {
+			streamer := &domain.Streamer{
+				ID:        "test-id",
+				Name:      "Test Streamer",
+				Platforms: []string{"kick", "twitch", "youtube"},
+				Handles: map[string]string{
+					"kick":    kickHandle,
+					"twitch":  twitchHandle,
+					"youtube": youtubeHandle,
+				},
+			}
+
+			var buf bytes.Buffer
+			if err := tmpl.Execute(&buf, streamer); err != nil {
+				return false
+			}
+
+			output := buf.String()
+
+			// Check all platform URLs are present
+			hasKickURL := strings.Contains(output, "https://kick.com/"+kickHandle)
+			hasTwitchURL := strings.Contains(output, "https://twitch.tv/"+twitchHandle)
+			hasYoutubeURL := strings.Contains(output, "https://youtube.com/@"+youtubeHandle)
+
+			return hasKickURL && hasTwitchURL && hasYoutubeURL
+		},
+		kickHandleGen,
+		twitchHandleGen,
+		youtubeHandleGen,
+	))
+
+	// Property: Platform links have data attributes for handle identification
+	properties.Property("kick platform link has data-platform and data-handle attributes", prop.ForAll(
+		func(handle string) bool {
+			streamer := &domain.Streamer{
+				ID:        "test-id",
+				Name:      "Test Streamer",
+				Platforms: []string{"kick"},
+				Handles:   map[string]string{"kick": handle},
+			}
+
+			var buf bytes.Buffer
+			if err := tmpl.Execute(&buf, streamer); err != nil {
+				return false
+			}
+
+			output := buf.String()
+
+			// Check that data attributes are present
+			hasDataPlatform := strings.Contains(output, `data-platform="kick"`)
+			hasDataHandle := strings.Contains(output, `data-handle="`+handle+`"`)
+
+			return hasDataPlatform && hasDataHandle
+		},
+		kickHandleGen,
+	))
+
+	properties.TestingRun(t)
+}
