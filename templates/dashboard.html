@@ -5,7 +5,7 @@
 {{define "content"}}
 <div class="page-header">
     <h1>Your Dashboard</h1>
-    <p>Welcome back, {{.User.Email}} | <a href="/programme">Manage Programme</a></p>
+    <p><a href="/programme">Manage Programme</a></p>
 </div>
 
 <!-- Programme Status Notice -->
@@ -39,11 +39,11 @@
 
 <div id="search-results"></div>
 
-<h2 style="margin: 2rem 0 1rem;">Your Followed Streamers</h2>
+<h2 style="margin: 2rem 0 1rem;">Your Programme Streamers</h2>
 
-{{if .FollowedStreamers}}
-<div class="streamer-grid" id="followed-streamers">
-    {{range .FollowedStreamers}}
+{{if .ProgrammeStreamers}}
+<div class="streamer-grid" id="programme-streamers">
+    {{range .ProgrammeStreamers}}
     {{$status := index $.LiveStatuses .ID}}
     <div class="streamer-card" hx-get="/api/livestatus/{{.ID}}" hx-trigger="every 60s" hx-swap="outerHTML"
         hx-select=".status-section">
@@ -73,11 +73,8 @@
         </div>
 
         <div style="margin-top: 1rem; display: flex; gap: 10px;">
-            <form action="/unfollow/{{.ID}}" method="POST" style="display: inline;">
-                <button type="submit" class="btn btn-danger">Unfollow</button>
-            </form>
-            <form action="/programme/add/{{.ID}}" method="POST" style="display: inline;">
-                <button type="submit" class="btn btn-secondary">Add to Programme</button>
+            <form action="/programme/remove/{{.ID}}" method="POST" style="display: inline;">
+                <button type="submit" class="btn btn-danger">Remove from Programme</button>
             </form>
         </div>
     </div>
@@ -85,8 +82,8 @@
 </div>
 {{else}}
 <div class="empty-state">
-    <h3>No followed streamers yet</h3>
-    <p>Use the search above to find and follow your favorite streamers!</p>
+    <h3>No streamers in your programme yet</h3>
+    <p>Use the search above to find and add streamers to your programme!</p>
 </div>
 {{end}}
 

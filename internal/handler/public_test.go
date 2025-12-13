@@ -74,10 +74,8 @@ func setupTestHandler(t *testing.T) (*PublicHandler, *sqlite.DB, func()) {
 	mockTwitch := newMockPlatformAdapter("twitch")
 	searchService := service.NewSearchService(mockYouTube, mockKick, mockTwitch)
 
-	// Initialize OAuth configuration (with dummy values for testing)
-	oauthConfig := auth.NewGoogleOAuthConfig("test-client-id", "test-client-secret", "http://localhost:8080/auth/google/callback")
+	// Initialize session manager for guest programme storage (no auth required)
 	sessionManager := auth.NewSessionManager("test-session", false, 3600)
-	stateStore := auth.NewStateStore()
 
 	// Create handler
 	handler := NewPublicHandler(
@@ -88,9 +86,8 @@ func setupTestHandler(t *testing.T) (*PublicHandler, *sqlite.DB, func()) {
 		userService,
 		searchService,
 		programmeService,
-		oauthConfig,
+		mockKick, // kick adapter for adding streamers
 		sessionManager,
-		stateStore,
 	)
 
 	cleanup := func() {
@@ -230,114 +227,6 @@ func TestHandleStreamerDetail(t *testing.T) {
 	})
 }
 
-// TestHandleLogin tests the login handler
-func TestHandleLogin(t *testing.T) {
-	handler, _, cleanup := setupTestHandler(t)
-	defer cleanup()
-
-	t.Run("redirects to Google OAuth", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodGet, "/login", nil)
-		w := httptest.NewRecorder()
-
-		handler.HandleLogin(w, req)
-
-		if w.Code != http.StatusTemporaryRedirect {
-			t.Errorf("Expected status 307, got %d", w.Code)
-		}
-
-		location := w.Header().Get("Location")
-		if location == "" {
-			t.Error("Expected Location header to be set")
-		}
-
-		// Check that it's a Google OAuth URL
-		if !contains(location, "accounts.google.com") {
-			t.Errorf("Expected redirect to Google OAuth, got: %s", location)
-		}
-	})
-}
-
-// TestHandleAuthCallback tests the OAuth callback handler
-func TestHandleAuthCallback(t *testing.T) {
-	handler, _, cleanup := setupTestHandler(t)
-	defer cleanup()
-
-	t.Run("rejects invalid state token", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodGet, "/auth/callback?state=invalid&code=test", nil)
-		w := httptest.NewRecorder()
-
-		handler.HandleAuthCallback(w, req)
-
-		if w.Code != http.StatusBadRequest {
-			t.Errorf("Expected status 400, got %d", w.Code)
-		}
-	})
-
-	t.Run("requires state parameter", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodGet, "/auth/callback?code=test", nil)
-		w := httptest.NewRecorder()
-
-		handler.HandleAuthCallback(w, req)
-
-		if w.Code != http.StatusBadRequest {
-			t.Errorf("Expected status 400, got %d", w.Code)
-		}
-	})
-}
-
-// TestHandleLogout tests the logout handler
-func TestHandleLogout(t *testing.T) {
-	handler, _, cleanup := setupTestHandler(t)
-	defer cleanup()
-
-	t.Run("clears session and redirects", func(t *testing.T) {
-		// Create a test user and set session
-		ctx := context.Background()
-		user, err := handler.userService.CreateUser(ctx, "test-google-id", "test@example.com")
-		if err != nil {
-			t.Fatalf("Failed to create test user: %v", err)
-		}
-
-		req := httptest.NewRequest(http.MethodGet, "/logout", nil)
-		w := httptest.NewRecorder()
-
-		// Set session
-		handler.sessionManager.SetSession(w, user.ID)
-
-		// Copy cookie to request
-		for _, cookie := range w.Result().Cookies() {
-			req.AddCookie(cookie)
-		}
-
-		// Reset recorder and call logout
-		w = httptest.NewRecorder()
-		handler.HandleLogout(w, req)
-
-		if w.Code != http.StatusSeeOther {
-			t.Errorf("Expected status 303, got %d", w.Code)
-		}
-
-		location := w.Header().Get("Location")
-		if location != "/" {
-			t.Errorf("Expected redirect to '/', got: %s", location)
-		}
-
-		// Check that session cookie is cleared
-		cookies := w.Result().Cookies()
-		sessionCleared := false
-		for _, cookie := range cookies {
-			if cookie.Name == "test-session" && cookie.MaxAge < 0 {
-				sessionCleared = true
-				break
-			}
-		}
-
-		if !sessionCleared {
-			t.Error("Expected session cookie to be cleared")
-		}
-	})
-}
-
 // TestStreamerDetailShowsLiveStatusAndHeatmap tests that streamer detail page displays live status and heatmap
 func TestStreamerDetailShowsLiveStatusAndHeatmap(t *testing.T) {
 	handler, _, cleanup := setupTestHandler(t)
@@ -439,22 +328,6 @@ func TestErrorHandling(t *testing.T) {
 		}
 	})
 
-	t.Run("handles invalid OAuth state gracefully", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodGet, "/auth/callback?state=invalid-state&code=test-code", nil)
-		w := httptest.NewRecorder()
-
-		handler.HandleAuthCallback(w, req)
-
-		if w.Code != http.StatusBadRequest {
-			t.Errorf("Expected status 400, got %d", w.Code)
-		}
-
-		body := w.Body.String()
-		// Check for user-friendly error message
-		if !contains(body, "authentication") || !contains(body, "try") {
-			t.Error("Expected user-friendly error message for invalid state")
-		}
-	})
 }
 
 // TestPlatformAPIFailureHandling tests handling of platform API failures
@@ -540,16 +413,6 @@ func TestUserFriendlyErrorMessages(t *testing.T) {
 				return contains(body, "not found") || contains(body, "Not Found")
 			},
 		},
-		{
-			name: "invalid OAuth state shows friendly message",
-			setupRequest: func() *http.Request {
-				return httptest.NewRequest(http.MethodGet, "/auth/callback?state=bad&code=test", nil)
-			},
-			expectedStatus: http.StatusBadRequest,
-			checkMessage: func(body string) bool {
-				return contains(body, "authentication") && contains(body, "try")
-			},
-		},
 	}
 
 	for _, tc := range testCases {
@@ -560,8 +423,6 @@ func TestUserFriendlyErrorMessages(t *testing.T) {
 			// Route to appropriate handler based on path
 			if contains(req.URL.Path, "/streamer/") {
 				handler.HandleStreamerDetail(w, req)
-			} else if contains(req.URL.Path, "/auth/callback") {
-				handler.HandleAuthCallback(w, req)
 			}
 
 			if w.Code != tc.expectedStatus {
@@ -597,18 +458,18 @@ func TestHandleSearch_UnauthenticatedAccess(t *testing.T) {
 		}
 	})
 
-	t.Run("rejects GET method", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodGet, "/search?query=test", nil)
+	t.Run("accepts GET method and shows search page", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/search?q=test", nil)
 		w := httptest.NewRecorder()
 
 		handler.HandleSearch(w, req)
 
-		if w.Code != http.StatusMethodNotAllowed {
-			t.Errorf("Expected status 405 for GET request, got %d", w.Code)
+		if w.Code != http.StatusOK {
+			t.Errorf("Expected status 200 for GET request, got %d", w.Code)
 		}
 	})
 
-	t.Run("requires query parameter", func(t *testing.T) {
+	t.Run("shows empty search page for empty query", func(t *testing.T) {
 		form := url.Values{}
 		form.Add("query", "")
 
@@ -618,8 +479,9 @@ func TestHandleSearch_UnauthenticatedAccess(t *testing.T) {
 
 		handler.HandleSearch(w, req)
 
-		if w.Code != http.StatusBadRequest {
-			t.Errorf("Expected status 400 for empty query, got %d", w.Code)
+		// Now returns 200 with empty search page instead of 400
+		if w.Code != http.StatusOK {
+			t.Errorf("Expected status 200 for empty query (shows search page), got %d", w.Code)
 		}
 	})
 }
@@ -658,9 +520,7 @@ func TestHandleSearch_NoResults(t *testing.T) {
 	searchService := service.NewSearchService(emptyMock, emptyMock, emptyMock)
 	programmeService := service.NewProgrammeService(programmeRepo, streamerRepo, followRepo, heatmapService)
 
-	oauthConfig := auth.NewGoogleOAuthConfig("test-client-id", "test-client-secret", "http://localhost:8080/auth/google/callback")
 	sessionManager := auth.NewSessionManager("test-session", false, 3600)
-	stateStore := auth.NewStateStore()
 
 	handler := NewPublicHandler(
 		tvProgrammeService,
@@ -670,9 +530,8 @@ func TestHandleSearch_NoResults(t *testing.T) {
 		userService,
 		searchService,
 		programmeService,
-		oauthConfig,
+		emptyMock, // kick adapter
 		sessionManager,
-		stateStore,
 	)
 
 	form := url.Values{}

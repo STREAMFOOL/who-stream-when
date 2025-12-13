@@ -76,10 +76,8 @@ func main() {
 	userService := service.NewUserService(userRepo, followRepo, activityRepo, streamerRepo, programmeRepo)
 	tvProgrammeService := service.NewTVProgrammeService(heatmapService, userRepo, followRepo, streamerRepo, activityRepo)
 
-	// Initialize Google OAuth for authentication
-	oauthConfig := auth.NewGoogleOAuthConfig(cfg.GoogleClientID, cfg.GoogleClientSecret, cfg.GoogleRedirectURL)
+	// Initialize session manager for guest programme storage (no auth required)
 	sessionManager := auth.NewSessionManager(cfg.SessionSecret, false, cfg.SessionDuration)
-	stateStore := auth.NewStateStore()
 
 	// Initialize multi-platform search service
 	searchService := service.NewSearchService(
@@ -100,19 +98,7 @@ func main() {
 		userService,
 		searchService,
 		programmeService,
-		oauthConfig,
-		sessionManager,
-		stateStore,
-	)
-
-	authenticatedHandler := handler.NewAuthenticatedHandler(
-		tvProgrammeService,
-		streamerService,
-		liveStatusService,
-		heatmapService,
-		userService,
-		searchService,
-		programmeService,
+		kickAdapter,
 		sessionManager,
 	)
 
@@ -127,17 +113,11 @@ func main() {
 
 	// Public routes (accessible without authentication)
 	mux.HandleFunc("/", publicHandler.HandleHome)
+	mux.HandleFunc("/streamer/add", publicHandler.HandleAddStreamerFromSearch)
 	mux.HandleFunc("/streamer/{id}", publicHandler.HandleStreamerDetail)
-	mux.HandleFunc("/login", publicHandler.HandleLogin)
-	mux.HandleFunc("/auth/google/callback", publicHandler.HandleAuthCallback)
-	mux.HandleFunc("/logout", publicHandler.HandleLogout)
 	mux.HandleFunc("/search", publicHandler.HandleSearch)
-
-	// Authenticated routes (require valid session)
-	mux.HandleFunc("/dashboard", authenticatedHandler.RequireAuth(authenticatedHandler.HandleDashboard))
-	mux.HandleFunc("/follow/{id}", authenticatedHandler.RequireAuth(authenticatedHandler.HandleFollow))
-	mux.HandleFunc("/unfollow/{id}", authenticatedHandler.RequireAuth(authenticatedHandler.HandleUnfollow))
-	mux.HandleFunc("/calendar", authenticatedHandler.RequireAuth(authenticatedHandler.HandleCalendar))
+	mux.HandleFunc("/dashboard", publicHandler.HandleDashboard)
+	mux.HandleFunc("/calendar", publicHandler.HandleCalendar)
 
 	// Programme management routes (accessible to all users - authenticated and guest)
 	mux.HandleFunc("/programme", programmeHandler.HandleProgrammeManagement)

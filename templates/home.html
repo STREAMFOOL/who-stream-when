@@ -13,6 +13,16 @@
     {{end}}
 </div>
 
+<!-- Search Form -->
+<form action="/search" method="POST" class="search-form" style="margin-bottom: 2rem;">
+    <input type="text" name="query" placeholder="Search for streamers on Kick..." required
+        style="padding: 0.75rem; width: 300px; border: 1px solid #ccc; border-radius: 4px;">
+    <button type="submit" class="btn btn-primary"
+        style="padding: 0.75rem 1.5rem; background: #6366f1; color: white; border: none; border-radius: 4px; cursor: pointer;">
+        Search
+    </button>
+</form>
+
 {{if .WeekView.Streamers}}
 <div class="streamer-grid" id="streamer-list">
     {{range .WeekView.Streamers}}
@@ -54,10 +64,7 @@
 {{else}}
 <div class="empty-state">
     <h3>No streamers yet</h3>
-    <p>Be the first to follow a streamer!</p>
-    {{if not .IsAuthenticated}}
-    <p><a href="/login" class="btn btn-primary">Login with Google</a> to search and follow streamers.</p>
-    {{end}}
+    <p>Use the search form above to find and add Kick streamers to track.</p>
 </div>
 {{end}}
 {{end}}

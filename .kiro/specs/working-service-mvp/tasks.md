@@ -1,24 +1,24 @@
 # Implementation Plan
 
-- [ ] 1. Fix navigation and remove authentication
-  - [ ] 1.1 Fix template navigation links
+- [x] 1. Fix navigation and remove authentication
+  - [x] 1.1 Fix template navigation links
     - Remove any hx-* attributes from navigation links in `templates/base.html`
     - Ensure all nav links use standard `<a href="...">` tags
     - Remove "Login with Google" button from navigation
     - Remove IsAuthenticated conditionals from templates
     - _Requirements: 1.1, 1.2, 1.3, 1.4, 2.2_
-  - [ ] 1.2 Remove Google OAuth routes and handlers
+  - [x] 1.2 Remove Google OAuth routes and handlers
     - Remove `/login`, `/logout`, `/auth/google/callback` routes from `main.go`
     - Remove `HandleLogin`, `HandleAuthCallback`, `HandleLogout` from `PublicHandler`
     - Remove OAuth config initialization from `main.go`
     - Keep SessionManager for guest programme storage (remove auth-related methods)
     - _Requirements: 2.1_
-  - [ ] 1.3 Make all routes public
+  - [x] 1.3 Make all routes public
     - Remove `RequireAuth` middleware wrapper from `/dashboard`, `/calendar`, `/follow`, `/unfollow` routes
     - Consolidate authenticated handler functionality into public handler
     - Remove authentication checks from handler methods
     - _Requirements: 2.1, 2.3, 2.4, 2.5_
-  - [ ] 1.4 Write property test for public access
+  - [x] 1.4 Write property test for public access
     - **Property 1: Public Access Without Authentication**
     - Test all endpoints return 2xx without auth cookies
     - **Validates: Requirements 2.1, 2.3, 2.4, 2.5**

@@ -16,19 +16,9 @@
     </div>
 
     <div class="streamer-actions">
-        {{if .IsAuthenticated}}
-        {{if .IsFollowing}}
-        <form action="/unfollow/{{.Streamer.ID}}" method="POST">
-            <button type="submit" class="btn btn-danger">Unfollow</button>
+        <form action="/programme/add/{{.Streamer.ID}}" method="POST">
+            <button type="submit" class="btn btn-primary">Add to Programme</button>
         </form>
-        {{else}}
-        <form action="/follow/{{.Streamer.ID}}" method="POST">
-            <button type="submit" class="btn btn-primary">Follow</button>
-        </form>
-        {{end}}
-        {{else}}
-        <a href="/login" class="btn btn-primary">Login to Follow</a>
-        {{end}}
     </div>
 </div>
 

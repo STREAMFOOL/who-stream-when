@@ -1,17 +1,17 @@
 {{template "base" .}}
 
-{{define "title"}}Search Results - Who Live When{{end}}
+{{define "title"}}Search - Who Live When{{end}}
 
 {{define "content"}}
-{{if .IsAuthenticated}}
-<a href="/dashboard" class="back-link">← Back to Dashboard</a>
-{{else}}
 <a href="/" class="back-link">← Back to Home</a>
-{{end}}
 
 <div class="page-header">
-    <h1>Search Results</h1>
+    <h1>Search Streamers</h1>
+    {{if .Query}}
     <p>Results for "{{.Query}}"</p>
+    {{else}}
+    <p>Find streamers on Kick to add to your tracker</p>
+    {{end}}
 </div>
 
 <!-- Search Form -->
@@ -49,23 +49,26 @@
             {{end}}
             {{end}}
             {{if $isFollowed}}
-            <span class="btn btn-secondary" style="cursor: default;">Already Following</span>
-            {{else if $.IsAuthenticated}}
-            <p style="color: #6b7280; font-size: 0.875rem;">
-                <em>To follow, this streamer needs to be added to the system first.</em>
-            </p>
+            <span class="btn btn-secondary" style="cursor: default;">In Programme</span>
             {{else}}
-            <p style="color: #6b7280; font-size: 0.875rem;">
-                <em><a href="/login">Login</a> to follow streamers.</em>
-            </p>
+            <form action="/streamer/add" method="POST" style="display: inline;">
+                <input type="hidden" name="platform" value="kick">
+                <input type="hidden" name="handle" value="{{index .Handles " kick"}}">
+                <button type="submit" class="btn btn-primary">Add to Tracker</button>
+            </form>
             {{end}}
         </div>
     </div>
     {{end}}
     {{else}}
     <div class="empty-state">
+        {{if .Query}}
         <h3>No results found</h3>
         <p>No streamers found matching "{{.Query}}". Try a different search term.</p>
+        {{else}}
+        <h3>Search for streamers</h3>
+        <p>Enter a streamer name above to search on Kick.</p>
+        {{end}}
     </div>
     {{end}}
 </div>

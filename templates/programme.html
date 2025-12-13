@@ -5,20 +5,10 @@
 {{define "content"}}
 <div class="page-header">
     <h1>Programme Management</h1>
-    {{if .IsAuthenticated}}
-    <p><a href="/dashboard">← Back to Dashboard</a></p>
-    {{else}}
     <p><a href="/">← Back to Home</a></p>
-    {{end}}
 </div>
 
-{{if .IsGuest}}
-<div class="notice-box guest-notice">
-    <strong>Guest User Notice:</strong> You are browsing as a guest. Your programme is stored in your browser session
-    and will be lost when you close your browser. <a href="/login" class="btn-link">Login with Google</a> to save
-    your programme permanently.
-</div>
-{{end}}
+
 
 {{if .HasCustomProgramme}}
 <div class="programme-section">

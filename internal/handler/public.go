@@ -24,9 +24,8 @@ type PublicHandler struct {
 	userService        domain.UserService
 	searchService      *service.SearchService
 	programmeService   *service.ProgrammeService
-	oauthConfig        *auth.GoogleOAuthConfig
+	kickAdapter        domain.PlatformAdapter
 	sessionManager     *auth.SessionManager
-	stateStore         *auth.StateStore
 	templates          *template.Template
 	logger             *logger.Logger
 }
@@ -40,9 +39,8 @@ func NewPublicHandler(
 	userService domain.UserService,
 	searchService *service.SearchService,
 	programmeService *service.ProgrammeService,
-	oauthConfig *auth.GoogleOAuthConfig,
+	kickAdapter domain.PlatformAdapter,
 	sessionManager *auth.SessionManager,
-	stateStore *auth.StateStore,
 ) *PublicHandler {
 	return &PublicHandler{
 		tvProgrammeService: tvProgrammeService,
@@ -52,9 +50,8 @@ func NewPublicHandler(
 		userService:        userService,
 		searchService:      searchService,
 		programmeService:   programmeService,
-		oauthConfig:        oauthConfig,
+		kickAdapter:        kickAdapter,
 		sessionManager:     sessionManager,
-		stateStore:         stateStore,
 		templates:          LoadTemplates(),
 		logger:             logger.Default(),
 	}
@@ -422,140 +419,40 @@ func (h *PublicHandler) renderSimpleStreamerDetail(w http.ResponseWriter, stream
 </html>`)
 }
 
-// HandleLogin initiates Google OAuth flow
-// GET /login
-func (h *PublicHandler) HandleLogin(w http.ResponseWriter, r *http.Request) {
-	// Generate state token for CSRF protection
-	state, err := auth.GenerateStateToken()
-	if err != nil {
-		h.logger.Error("Failed to generate state token", map[string]interface{}{
-			"error": err.Error(),
-		})
-		h.renderError(w, "Unable to initiate login. Please try again.", http.StatusInternalServerError)
-		return
-	}
-
-	// Store state token
-	h.stateStore.Store(state)
-
-	// Get OAuth URL
-	authURL := h.oauthConfig.GetAuthURL(state)
-
-	// Redirect to Google OAuth
-	http.Redirect(w, r, authURL, http.StatusTemporaryRedirect)
-}
-
-// HandleAuthCallback handles the OAuth callback from Google
-// GET /auth/google/callback
-func (h *PublicHandler) HandleAuthCallback(w http.ResponseWriter, r *http.Request) {
+// HandleSearch handles streamer search requests (accessible to all users)
+// GET/POST /search
+func (h *PublicHandler) HandleSearch(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	// Get state and code from query parameters
-	state := r.URL.Query().Get("state")
-	code := r.URL.Query().Get("code")
+	var query string
 
-	// Verify state token
-	if !h.stateStore.Verify(state) {
-		h.logger.Warn("Invalid OAuth state token", map[string]interface{}{
-			"state": state,
-		})
-		h.renderError(w, "Invalid authentication request. Please try logging in again.", http.StatusBadRequest)
-		return
-	}
-
-	// Exchange code for token
-	token, err := h.oauthConfig.Exchange(ctx, code)
-	if err != nil {
-		h.logger.Error("Failed to exchange OAuth code for token", map[string]interface{}{
-			"error": err.Error(),
-		})
-		h.renderError(w, "Authentication failed. Please try again.", http.StatusInternalServerError)
-		return
-	}
-
-	// Get user info from Google
-	userInfo, err := h.oauthConfig.GetUserInfo(ctx, token)
-	if err != nil {
-		h.logger.Error("Failed to get user info from Google", map[string]interface{}{
-			"error": err.Error(),
-		})
-		h.renderError(w, "Unable to retrieve your account information. Please try again.", http.StatusInternalServerError)
-		return
-	}
-
-	// Create or get user
-	user, err := h.userService.CreateUser(ctx, userInfo.ID, userInfo.Email)
-	if err != nil {
-		h.logger.Error("Failed to create user account", map[string]interface{}{
-			"google_id": userInfo.ID,
-			"email":     userInfo.Email,
-			"error":     err.Error(),
-		})
-		h.renderError(w, "Unable to create your account. Please try again.", http.StatusInternalServerError)
-		return
-	}
-
-	// Migrate guest data if exists
-	guestFollows, _ := h.sessionManager.GetGuestFollows(r)
-	guestProgrammeData, _ := h.sessionManager.GetGuestProgramme(r)
-
-	var guestProgramme *domain.CustomProgramme
-	if guestProgrammeData != nil {
-		guestProgramme = &domain.CustomProgramme{
-			StreamerIDs: guestProgrammeData.StreamerIDs,
+	if r.Method == http.MethodGet {
+		// GET request - show search page with optional query from URL
+		query = r.URL.Query().Get("q")
+	} else if r.Method == http.MethodPost {
+		// POST request - process search form
+		if err := r.ParseForm(); err != nil {
+			log.Printf("Error parsing form: %v", err)
+			http.Error(w, "Invalid form data", http.StatusBadRequest)
+			return
 		}
-	}
-
-	if len(guestFollows) > 0 || guestProgramme != nil {
-		if err := h.userService.MigrateGuestData(ctx, user.ID, guestFollows, guestProgramme); err != nil {
-			h.logger.Error("Failed to migrate guest data", map[string]interface{}{
-				"user_id": user.ID,
-				"error":   err.Error(),
-			})
-			// Don't fail the login, just log the error
-		} else {
-			// Clear guest data after successful migration
-			h.sessionManager.ClearGuestData(w)
-		}
-	}
-
-	// Set session
-	h.sessionManager.SetSession(w, user.ID)
-
-	// Redirect to home page
-	http.Redirect(w, r, "/", http.StatusSeeOther)
-}
-
-// HandleLogout clears the user session
-// GET /logout
-func (h *PublicHandler) HandleLogout(w http.ResponseWriter, r *http.Request) {
-	// Clear session
-	h.sessionManager.ClearSession(w)
-
-	// Redirect to home page
-	http.Redirect(w, r, "/", http.StatusSeeOther)
-}
-
-// HandleSearch handles streamer search requests (accessible to all users)
-// POST /search
-func (h *PublicHandler) HandleSearch(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
+		query = r.FormValue("query")
+	} else {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
-	ctx := r.Context()
-
-	// Parse form data
-	if err := r.ParseForm(); err != nil {
-		log.Printf("Error parsing form: %v", err)
-		http.Error(w, "Invalid form data", http.StatusBadRequest)
-		return
-	}
-
-	query := r.FormValue("query")
+	// If no query, show empty search page
 	if query == "" {
-		http.Error(w, "Search query is required", http.StatusBadRequest)
+		data := map[string]any{
+			"Query":           "",
+			"Results":         []*service.SearchResult{},
+			"FollowedHandles": make(map[string]bool),
+			"IsAuthenticated": false,
+		}
+		if err := h.templates.ExecuteTemplate(w, "search.html", data); err != nil {
+			h.renderSimpleSearch(w, "", nil, nil, false)
+		}
 		return
 	}
 
@@ -777,4 +674,369 @@ func (h *PublicHandler) renderError(w http.ResponseWriter, message string, statu
 	</div>
 </body>
 </html>`, message)
+}
+
+// HandleDashboard displays the dashboard with programme streamers (public access)
+// GET /dashboard
+func (h *PublicHandler) HandleDashboard(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	// Get guest programme from session
+	guestProgramme, _ := h.sessionManager.GetGuestProgramme(r)
+
+	var programmeStreamers []*domain.Streamer
+	hasCustomProgramme := false
+
+	if guestProgramme != nil && len(guestProgramme.StreamerIDs) > 0 {
+		hasCustomProgramme = true
+		for _, streamerID := range guestProgramme.StreamerIDs {
+			streamer, err := h.streamerService.GetStreamer(ctx, streamerID)
+			if err != nil {
+				h.logger.Warn("Failed to get streamer for programme", map[string]interface{}{
+					"streamer_id": streamerID,
+					"error":       err.Error(),
+				})
+				continue
+			}
+			programmeStreamers = append(programmeStreamers, streamer)
+		}
+	}
+
+	// Get live status for programme streamers
+	liveStatuses := make(map[string]*domain.LiveStatus)
+	for _, streamer := range programmeStreamers {
+		status, err := h.liveStatusService.GetLiveStatus(ctx, streamer.ID)
+		if err != nil {
+			h.logger.Warn("Failed to get live status", map[string]interface{}{
+				"streamer_id": streamer.ID,
+				"error":       err.Error(),
+			})
+			continue
+		}
+		liveStatuses[streamer.ID] = status
+	}
+
+	data := map[string]interface{}{
+		"ProgrammeStreamers": programmeStreamers,
+		"LiveStatuses":       liveStatuses,
+		"HasCustomProgramme": hasCustomProgramme,
+		"IsAuthenticated":    false,
+	}
+
+	if err := h.templates.ExecuteTemplate(w, "dashboard.html", data); err != nil {
+		h.renderSimpleDashboard(w, programmeStreamers, liveStatuses, hasCustomProgramme)
+	}
+}
+
+// renderSimpleDashboard renders a simple HTML dashboard page
+func (h *PublicHandler) renderSimpleDashboard(w http.ResponseWriter, programmeStreamers []*domain.Streamer, liveStatuses map[string]*domain.LiveStatus, hasCustomProgramme bool) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	fmt.Fprintf(w, `<!DOCTYPE html>
+<html>
+<head>
+	<title>Dashboard - Who Live When</title>
+	<style>
+		body { font-family: Arial, sans-serif; margin: 20px; }
+		.streamer { border: 1px solid #ccc; padding: 10px; margin: 10px 0; }
+		.live { background-color: #d4edda; }
+		.offline { background-color: #f8d7da; }
+		.header { background-color: #e7f3ff; padding: 10px; margin-bottom: 20px; }
+		.programme-notice { background-color: #fff3cd; padding: 10px; margin: 10px 0; border-radius: 5px; }
+	</style>
+</head>
+<body>
+	<div class="header">
+		<h1>Dashboard</h1>
+		<p><a href="/">Home</a> | <a href="/calendar">Calendar</a> | <a href="/programme">Manage Programme</a></p>
+	</div>
+`)
+
+	if hasCustomProgramme {
+		fmt.Fprintf(w, `
+	<div class="programme-notice" style="background-color: #d1ecf1; border-left: 4px solid #0c5460;">
+		<h3>📅 Custom Programme Active</h3>
+		<p>You're using a custom programme with %d streamer(s).</p>
+		<a href="/programme">Manage Programme</a>
+	</div>
+`, len(programmeStreamers))
+	} else {
+		fmt.Fprintf(w, `
+	<div class="programme-notice">
+		<h3>🌍 Global Programme</h3>
+		<p>Create a custom programme to personalize your calendar.</p>
+		<a href="/programme">Create Custom Programme</a>
+	</div>
+`)
+	}
+
+	fmt.Fprintf(w, `
+	<h2>Your Programme Streamers</h2>
+	<form action="/search" method="POST" style="margin-bottom: 20px;">
+		<input type="text" name="query" placeholder="Search for streamers..." required>
+		<button type="submit">Search</button>
+	</form>
+`)
+
+	if len(programmeStreamers) == 0 {
+		fmt.Fprintf(w, `<p>No streamers in your programme yet. Use the search above to find streamers!</p>`)
+	} else {
+		for _, streamer := range programmeStreamers {
+			status := liveStatuses[streamer.ID]
+			liveClass := "offline"
+			liveText := "Offline"
+			streamLink := ""
+
+			if status != nil && status.IsLive {
+				liveClass = "live"
+				liveText = fmt.Sprintf("Live on %s", status.Platform)
+				if status.StreamURL != "" {
+					streamLink = fmt.Sprintf(` - <a href="%s" target="_blank">Watch Stream</a>`, status.StreamURL)
+				}
+			}
+
+			fmt.Fprintf(w, `
+	<div class="streamer %s">
+		<h3><a href="/streamer/%s">%s</a></h3>
+		<p>Status: %s%s</p>
+		<p>Platforms: %v</p>
+		<form action="/programme/remove/%s" method="POST" style="display: inline;">
+			<button type="submit">Remove from Programme</button>
+		</form>
+	</div>
+`, liveClass, streamer.ID, streamer.Name, liveText, streamLink, streamer.Platforms, streamer.ID)
+		}
+	}
+
+	fmt.Fprintf(w, `
+</body>
+</html>`)
+}
+
+// HandleCalendar displays the TV programme calendar view (public access)
+// GET /calendar
+func (h *PublicHandler) HandleCalendar(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	// Parse week parameter (optional)
+	weekParam := r.URL.Query().Get("week")
+	var week time.Time
+	if weekParam != "" {
+		parsedWeek, err := time.Parse("2006-01-02", weekParam)
+		if err != nil {
+			h.logger.Warn("Error parsing week parameter", map[string]interface{}{
+				"error": err.Error(),
+			})
+			week = time.Now()
+		} else {
+			week = parsedWeek
+		}
+	} else {
+		week = time.Now()
+	}
+
+	// Get guest programme from session
+	guestProgramme, _ := h.sessionManager.GetGuestProgramme(r)
+
+	var calendarView *service.ProgrammeCalendarView
+	var err error
+
+	if guestProgramme != nil && len(guestProgramme.StreamerIDs) > 0 {
+		customProgramme := &domain.CustomProgramme{
+			StreamerIDs: guestProgramme.StreamerIDs,
+		}
+		calendarView, err = h.programmeService.GenerateCalendarFromProgramme(ctx, customProgramme, week)
+	}
+
+	// Fall back to global programme
+	if calendarView == nil {
+		calendarView, err = h.programmeService.GenerateGlobalProgramme(ctx, week, 10)
+		if err != nil {
+			h.logger.Error("Failed to generate programme", map[string]interface{}{
+				"error": err.Error(),
+			})
+			h.renderError(w, "Unable to load calendar. Please try again later.", http.StatusInternalServerError)
+			return
+		}
+	}
+
+	// Create streamer map for template
+	streamerMap := make(map[string]*domain.Streamer)
+	for _, streamer := range calendarView.Streamers {
+		streamerMap[streamer.ID] = streamer
+	}
+
+	// Calculate previous and next week dates
+	prevWeek := week.AddDate(0, 0, -7)
+	nextWeek := week.AddDate(0, 0, 7)
+
+	// Convert to TVProgramme for template compatibility
+	programme := &domain.TVProgramme{
+		Entries: calendarView.Entries,
+	}
+
+	data := map[string]interface{}{
+		"Programme":       programme,
+		"StreamerMap":     streamerMap,
+		"Week":            week,
+		"PrevWeek":        prevWeek,
+		"NextWeek":        nextWeek,
+		"IsAuthenticated": false,
+	}
+
+	if err := h.templates.ExecuteTemplate(w, "calendar.html", data); err != nil {
+		h.renderSimpleCalendar(w, programme, streamerMap, week, prevWeek, nextWeek)
+	}
+}
+
+// renderSimpleCalendar renders a simple HTML calendar page
+func (h *PublicHandler) renderSimpleCalendar(w http.ResponseWriter, programme *domain.TVProgramme, streamerMap map[string]*domain.Streamer, week, prevWeek, nextWeek time.Time) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	fmt.Fprintf(w, `<!DOCTYPE html>
+<html>
+<head>
+	<title>Calendar - Who Live When</title>
+	<style>
+		body { font-family: Arial, sans-serif; margin: 20px; }
+		.header { background-color: #e7f3ff; padding: 10px; margin-bottom: 20px; }
+		.calendar { border-collapse: collapse; width: 100%%; }
+		.calendar th, .calendar td { border: 1px solid #ccc; padding: 10px; text-align: left; vertical-align: top; }
+		.calendar th { background-color: #f0f0f0; }
+		.entry { background-color: #e7f3ff; padding: 5px; margin: 5px 0; border-radius: 3px; font-size: 0.9em; }
+		.nav { margin: 20px 0; }
+	</style>
+</head>
+<body>
+	<div class="header">
+		<h1>TV Programme Calendar</h1>
+		<p><a href="/">Home</a> | <a href="/dashboard">Dashboard</a> | <a href="/programme">Manage Programme</a></p>
+	</div>
+	<div class="nav">
+		<a href="/calendar?week=%s">← Previous Week</a> | 
+		<strong>Week of %s</strong> | 
+		<a href="/calendar?week=%s">Next Week →</a>
+	</div>
+`, prevWeek.Format("2006-01-02"), week.Format("2006-01-02"), nextWeek.Format("2006-01-02"))
+
+	if len(programme.Entries) == 0 {
+		fmt.Fprintf(w, `<p>No predictions available for this week. Add streamers to your programme to see their predicted live times!</p>`)
+	} else {
+		days := []string{"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"}
+
+		grid := make(map[int]map[int][]*domain.ProgrammeEntry)
+		for i := range programme.Entries {
+			entry := &programme.Entries[i]
+			if grid[entry.DayOfWeek] == nil {
+				grid[entry.DayOfWeek] = make(map[int][]*domain.ProgrammeEntry)
+			}
+			grid[entry.DayOfWeek][entry.Hour] = append(grid[entry.DayOfWeek][entry.Hour], entry)
+		}
+
+		fmt.Fprintf(w, `
+	<table class="calendar">
+		<thead>
+			<tr>
+				<th>Time</th>
+`)
+		for _, day := range days {
+			fmt.Fprintf(w, `				<th>%s</th>
+`, day)
+		}
+		fmt.Fprintf(w, `			</tr>
+		</thead>
+		<tbody>
+`)
+
+		for hour := 0; hour < 24; hour++ {
+			fmt.Fprintf(w, `			<tr>
+				<td>%02d:00</td>
+`, hour)
+			for day := 0; day < 7; day++ {
+				fmt.Fprintf(w, `				<td>
+`)
+				if entries, ok := grid[day][hour]; ok {
+					for _, entry := range entries {
+						streamer := streamerMap[entry.StreamerID]
+						if streamer != nil {
+							fmt.Fprintf(w, `					<div class="entry">
+						<strong>%s</strong><br>
+						%.0f%% likely
+					</div>
+`, streamer.Name, entry.Probability*100)
+						}
+					}
+				}
+				fmt.Fprintf(w, `				</td>
+`)
+			}
+			fmt.Fprintf(w, `			</tr>
+`)
+		}
+
+		fmt.Fprintf(w, `		</tbody>
+	</table>
+`)
+	}
+
+	fmt.Fprintf(w, `
+</body>
+</html>`)
+}
+
+// HandleAddStreamerFromSearch adds a streamer from search results to the database
+// POST /streamer/add
+func (h *PublicHandler) HandleAddStreamerFromSearch(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	ctx := r.Context()
+
+	// Parse form data
+	if err := r.ParseForm(); err != nil {
+		h.logger.Error("Failed to parse form", map[string]interface{}{
+			"error": err.Error(),
+		})
+		http.Error(w, "Invalid form data", http.StatusBadRequest)
+		return
+	}
+
+	platform := r.FormValue("platform")
+	handle := r.FormValue("handle")
+
+	if platform == "" || handle == "" {
+		http.Error(w, "Platform and handle are required", http.StatusBadRequest)
+		return
+	}
+
+	// For now, only support Kick
+	if platform != "kick" {
+		http.Error(w, "Only Kick platform is currently supported", http.StatusBadRequest)
+		return
+	}
+
+	// Get channel info from Kick API
+	channelInfo, err := h.kickAdapter.GetChannelInfo(ctx, handle)
+	if err != nil {
+		h.logger.Error("Failed to get channel info from Kick", map[string]interface{}{
+			"handle": handle,
+			"error":  err.Error(),
+		})
+		h.renderError(w, "Could not find streamer on Kick. Please check the handle and try again.", http.StatusNotFound)
+		return
+	}
+
+	// Use GetOrCreateStreamer to avoid duplicates
+	streamer, err := h.streamerService.GetOrCreateStreamer(ctx, "kick", handle, channelInfo.Name)
+	if err != nil {
+		h.logger.Error("Failed to create streamer", map[string]interface{}{
+			"handle": handle,
+			"error":  err.Error(),
+		})
+		h.renderError(w, "Failed to add streamer. Please try again.", http.StatusInternalServerError)
+		return
+	}
+
+	// Redirect to the streamer's page
+	http.Redirect(w, r, "/streamer/"+streamer.ID, http.StatusSeeOther)
 }

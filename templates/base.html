@@ -18,15 +18,9 @@
         </div>
         <div class="nav-links">
             <a href="/">Home</a>
-            {{if .IsAuthenticated}}
             <a href="/dashboard">Dashboard</a>
             <a href="/calendar">Calendar</a>
             <a href="/programme">Programme</a>
-            <a href="/logout">Logout</a>
-            {{else}}
-            <a href="/programme">Programme</a>
-            <a href="/login" class="btn-login">Login with Google</a>
-            {{end}}
         </div>
     </nav>
     <main class="container">
