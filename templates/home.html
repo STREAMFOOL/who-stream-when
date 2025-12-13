@@ -32,7 +32,8 @@
         <h3><a href="/streamer/{{.ID}}">{{.Name}}</a></h3>
 
         <div class="status-section">
-            {{if and $status $status.IsLive}}
+            {{if $status}}
+            {{if $status.IsLive}}
             <span class="status-badge status-live">Live on {{$status.Platform}}</span>
             {{if $status.Title}}
             <p class="stream-title">{{$status.Title}}</p>
@@ -45,6 +46,10 @@
             {{end}}
             {{else}}
             <span class="status-badge status-offline">Offline</span>
+            {{end}}
+            {{else}}
+            <span class="status-badge status-unknown">Status Unknown</span>
+            <p class="status-help">Unable to reach streaming platform. <a href="/streamer/{{.ID}}">View details</a></p>
             {{end}}
         </div>
 

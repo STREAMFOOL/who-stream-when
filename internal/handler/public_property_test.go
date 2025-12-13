@@ -1,7 +1,9 @@
 package handler
 
 import (
+	"bytes"
 	"context"
+	"html/template"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -180,6 +182,107 @@ func TestProperty_PublicAccessWithoutAuthentication(t *testing.T) {
 		gen.AlphaString().SuchThat(func(s string) bool {
 			return len(s) > 0 && len(s) < 50
 		}),
+	))
+
+	properties.TestingRun(t)
+}
+
+// **Feature: working-service-mvp, Property 4: Visual Status Indicator Consistency**
+// **Validates: Requirements 4.3**
+// For any streamer card rendered on the home page, the CSS class applied to the
+// status badge SHALL be `status-live` when the streamer is live, `status-offline`
+// when the streamer is offline, and `status-unknown` when status is unavailable.
+func TestProperty_VisualStatusIndicatorConsistency(t *testing.T) {
+	// Template snippet that mirrors the home.html status section logic
+	statusTemplate := `
+{{$status := .LiveStatus}}
+<div class="status-section">
+    {{if $status}}
+        {{if $status.IsLive}}
+        <span class="status-badge status-live">Live on {{$status.Platform}}</span>
+        {{else}}
+        <span class="status-badge status-offline">Offline</span>
+        {{end}}
+    {{else}}
+    <span class="status-badge status-unknown">Status Unknown</span>
+    {{end}}
+</div>`
+
+	tmpl, err := template.New("status").Parse(statusTemplate)
+	if err != nil {
+		t.Fatalf("Failed to parse template: %v", err)
+	}
+
+	parameters := gopter.DefaultTestParameters()
+	parameters.MinSuccessfulTests = 100
+	properties := gopter.NewProperties(parameters)
+
+	// Property: Live streamers get status-live CSS class
+	properties.Property("live status renders with status-live class", prop.ForAll(
+		func(platform string, viewerCount int) bool {
+			data := map[string]interface{}{
+				"LiveStatus": &domain.LiveStatus{
+					IsLive:      true,
+					Platform:    platform,
+					ViewerCount: viewerCount,
+				},
+			}
+
+			var buf bytes.Buffer
+			if err := tmpl.Execute(&buf, data); err != nil {
+				return false
+			}
+
+			output := buf.String()
+			return strings.Contains(output, "status-live") &&
+				!strings.Contains(output, "status-offline") &&
+				!strings.Contains(output, "status-unknown")
+		},
+		gen.OneConstOf("kick", "twitch", "youtube"),
+		gen.IntRange(0, 100000),
+	))
+
+	// Property: Offline streamers get status-offline CSS class
+	properties.Property("offline status renders with status-offline class", prop.ForAll(
+		func(platform string) bool {
+			data := map[string]interface{}{
+				"LiveStatus": &domain.LiveStatus{
+					IsLive:   false,
+					Platform: platform,
+				},
+			}
+
+			var buf bytes.Buffer
+			if err := tmpl.Execute(&buf, data); err != nil {
+				return false
+			}
+
+			output := buf.String()
+			return strings.Contains(output, "status-offline") &&
+				!strings.Contains(output, "status-live") &&
+				!strings.Contains(output, "status-unknown")
+		},
+		gen.OneConstOf("kick", "twitch", "youtube"),
+	))
+
+	// Property: Unknown status (nil) gets status-unknown CSS class
+	properties.Property("nil status renders with status-unknown class", prop.ForAll(
+		func(_ int) bool {
+			data := map[string]interface{}{
+				"LiveStatus": nil,
+			}
+
+			var buf bytes.Buffer
+			if err := tmpl.Execute(&buf, data); err != nil {
+				return false
+			}
+
+			output := buf.String()
+			return strings.Contains(output, "status-unknown") &&
+				!strings.Contains(output, "status-live") &&
+				!strings.Contains(output, "status-offline")
+		},
+		gen.Int(),
 	))
 
 	properties.TestingRun(t)

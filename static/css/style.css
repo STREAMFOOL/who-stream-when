@@ -169,6 +169,26 @@ a:hover {
     color: #6b7280;
 }
 
+.status-unknown {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.status-help {
+    font-size: 0.75rem;
+    color: #6b7280;
+    margin-top: 0.5rem;
+}
+
+.platform-link {
+    color: #6366f1;
+    font-weight: 500;
+}
+
+.platform-link:hover {
+    text-decoration: underline;
+}
+
 .platform-tags {
     display: flex;
     gap: 0.5rem;

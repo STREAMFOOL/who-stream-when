@@ -1,0 +1,1 @@
+* Navigation buttons don't do anything we only gete the basic homescreen

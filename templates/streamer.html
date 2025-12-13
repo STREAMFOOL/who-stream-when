@@ -42,18 +42,29 @@
     <p>This streamer is not currently live. Check the heatmap below to see when they usually stream.</p>
     {{end}}
     {{else}}
-    <h2>Status Unknown</h2>
-    <p>Unable to retrieve live status at this time.</p>
+    <h2>⚠️ Status Unknown</h2>
+    <p>Unable to reach the streaming platform. This could be temporary - try refreshing the page.</p>
     {{end}}
 </div>
 
 <!-- Platform Handles -->
 <div class="heatmap-container">
-    <h2>Platform Handles</h2>
+    <h2>Platform Links</h2>
     <ul style="list-style: none; padding: 0;">
         {{range $platform, $handle := .Streamer.Handles}}
         <li style="padding: 0.5rem 0; border-bottom: 1px solid #e5e7eb;">
+            {{if eq $platform "kick"}}
+            <strong>Kick:</strong> <a href="https://kick.com/{{$handle}}" target="_blank"
+                class="platform-link">{{$handle}}</a>
+            {{else if eq $platform "twitch"}}
+            <strong>Twitch:</strong> <a href="https://twitch.tv/{{$handle}}" target="_blank"
+                class="platform-link">{{$handle}}</a>
+            {{else if eq $platform "youtube"}}
+            <strong>YouTube:</strong> <a href="https://youtube.com/@{{$handle}}" target="_blank"
+                class="platform-link">{{$handle}}</a>
+            {{else}}
             <strong>{{$platform}}:</strong> {{$handle}}
+            {{end}}
         </li>
         {{end}}
     </ul>

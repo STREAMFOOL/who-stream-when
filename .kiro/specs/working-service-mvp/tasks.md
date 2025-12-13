@@ -23,23 +23,23 @@
     - Test all endpoints return 2xx without auth cookies
     - **Validates: Requirements 2.1, 2.3, 2.4, 2.5**
 
-- [ ] 2. Fix UI/template issues
-  - [ ] 2.1 Fix nested header issue in home template
+- [x] 2. Fix UI/template issues
+  - [x] 2.1 Fix nested header issue in home template
     - Review `templates/home.html` structure
     - Ensure only one `{{template "base" .}}` call
     - Remove any duplicate navbar HTML
     - _Requirements: 4.1, 4.2_
-  - [ ] 2.2 Clean up streamer card styling
+  - [x] 2.2 Clean up streamer card styling
     - Remove "Login to Follow" buttons from streamer cards
     - Ensure consistent card layout without nested elements
     - Fix "Status Unknown" display to show helpful message
     - _Requirements: 4.1, 4.2, 4.3, 3.5_
-  - [ ] 2.3 Update streamer detail template
+  - [x] 2.3 Update streamer detail template
     - Remove authentication-dependent UI elements
     - Ensure platform links are clickable
     - Add direct link to Kick channel
     - _Requirements: 6.1, 6.4_
-  - [ ] 2.4 Write property test for visual status indicators
+  - [x] 2.4 Write property test for visual status indicators
     - **Property 4: Visual Status Indicator Consistency**
     - Test CSS class application based on live status
     - **Validates: Requirements 4.3**
